@@ -7,7 +7,7 @@ fast: *.cpp *.h
 	g++ *.cpp -o blockchaintool -DUSE_CRYPTOPP_LIBRARY -lcrypto++
 
 pedantic: *.cpp *.h
-	g++ -Wcast-qual -Weffc++ -Wunused-function -Wunused-variable -Wunknown-pragmas -Wswitch-enum *.cpp -o blockchaintool
+	g++ -Wall -Wextra -Wold-style-cast -Wpointer-arith -Wcast-qual -Weffc++ -Wunused-function -Wunused-variable -Wunknown-pragmas -Wswitch-enum *.cpp -o blockchaintool -DUSE_CRYPTOPP_LIBRARY -lcrypto++
 
 run:	blockchain.out
 	./blockchain.out

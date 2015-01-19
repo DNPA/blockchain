@@ -28,10 +28,10 @@
 
 /* collect four bytes into one word: */
 #define BYTES_TO_DWORD(strptr)                    \
-            (((uint32_t) *((strptr)+3) << 24) | \
-             ((uint32_t) *((strptr)+2) << 16) | \
-             ((uint32_t) *((strptr)+1) <<  8) | \
-             ((uint32_t) *(strptr)))
+            ((static_cast<uint32_t>( *((strptr)+3) << 24)) | \
+             (static_cast<uint32_t>( *((strptr)+2) << 16)) | \
+             (static_cast<uint32_t>( *((strptr)+1) <<  8)) | \
+             (static_cast<uint32_t>( *(strptr))))
 
 /* ROL(x, n) cyclically rotates x over n bits to the left */
 /* x must be of an unsigned 32 bits type and 0 <= n < 32. */
@@ -344,11 +344,11 @@ void MDfinish(uint32_t *MDbuf,const uint8_t *strptr, uint32_t lswlen, uint32_t m
    /* put bytes from strptr into X */
    for (i=0; i<(lswlen&63); i++) {
       /* uint8_t i goes into word X[i div 4] at pos.  8*(i mod 4)  */
-      X[i>>2] ^= (uint32_t) *strptr++ << (8 * (i&3));
+      X[i>>2] ^= static_cast<uint32_t>(*strptr++ << (8 * (i&3)));
    }
 
    /* append the bit m_n == 1 */
-   X[(lswlen>>2)&15] ^= (uint32_t)1 << (8*(lswlen&3) + 7);
+   X[(lswlen>>2)&15] ^= static_cast<uint32_t>(1 << (8*(lswlen&3) + 7));
 
    if ((lswlen & 63) > 55) {
       /* length goes to next block */
@@ -366,13 +366,13 @@ void MDfinish(uint32_t *MDbuf,const uint8_t *strptr, uint32_t lswlen, uint32_t m
 
 #define RMDsize 160
 
-void computeRIPEMD160(const void *_message,uint32_t length,uint8_t hashcode[20])
+void computeRIPEMD160(const uint8_t *_message,uint32_t length,uint8_t hashcode[20])
 /*
  * returns RMD(message)
  * message should be a string terminated by '\0'
  */
 {
-	const uint8_t *message = (const uint8_t *)_message;
+	const uint8_t *message = _message;
 	uint32_t         MDbuf[RMDsize/32];   /* contains (A, B, C, D(, E))   */
 	uint32_t         X[16];               /* current 16-word chunk        */
 
@@ -395,10 +395,10 @@ void computeRIPEMD160(const void *_message,uint32_t length,uint8_t hashcode[20])
 
 	for (uint32_t i=0; i<RMDsize/8; i+=4) 
 	{
-		hashcode[i]   = (uint8_t)(MDbuf[i>>2]);         /* implicit cast to uint8_t  */
-		hashcode[i+1] = (uint8_t)(MDbuf[i>>2] >>  8);  /*  extracts the 8 least  */
-		hashcode[i+2] = (uint8_t)(MDbuf[i>>2] >> 16);  /*  significant bits.     */
-		hashcode[i+3] = (uint8_t)(MDbuf[i>>2] >> 24);
+		hashcode[i]   = static_cast<uint8_t>((MDbuf[i>>2]));         /* implicit cast to uint8_t  */
+		hashcode[i+1] = static_cast<uint8_t>(MDbuf[i>>2] >>  8);  /*  extracts the 8 least  */
+		hashcode[i+2] = static_cast<uint8_t>(MDbuf[i>>2] >> 16);  /*  significant bits.     */
+		hashcode[i+3] = static_cast<uint8_t>(MDbuf[i>>2] >> 24);
 	}
 
 }

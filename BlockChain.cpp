@@ -74,7 +74,6 @@ static uint32_t ZOMBIE_DAYS=365*3;
 static uint32_t	gBlockTime=0;
 static uint32_t gBlockIndex=0;
 static uint32_t gTransactionIndex=0;
-static uint8_t	gTransactionHash[256];
 static uint32_t gOutputIndex=0;
 static bool		gIsWarning=false;
 static FILE		*gWeirdSignatureFile=NULL;
@@ -132,33 +131,19 @@ static void logMessage(const char *fmt,...)
 class Hash256
 {
 public:
-	Hash256(void)
-	{
-		mWord0 = 0;
-		mWord1 = 0;
-		mWord2 = 0;
-		mWord3 = 0;
-	}
+	Hash256(void):mWord0(0),mWord1(0),mWord2(0),mWord3(0){}
 
-	Hash256(const Hash256 &h)
-	{
-		mWord0 = h.mWord0;
-		mWord1 = h.mWord1;
-		mWord2 = h.mWord2;
-		mWord3 = h.mWord3;
-	}
+	Hash256(const Hash256 &h):mWord0(h.mWord0),mWord1(h.mWord1),mWord2(h.mWord2),mWord3(h.mWord3){}
 
-	inline Hash256(const uint8_t *src)
-	{
-		mWord0 = *(const uint64_t *)(src);
-		mWord1 = *(const uint64_t *)(src+8);
-		mWord2 = *(const uint64_t *)(src+16);
-		mWord3 = *(const uint64_t *)(src+24);
-	}
+	inline Hash256(const uint8_t *src):mWord0(*reinterpret_cast<const uint64_t *>(src)),
+						mWord1(*reinterpret_cast<const uint64_t *>(src+8)),
+						mWord2(*reinterpret_cast<const uint64_t *>(src+16)),
+						mWord3(*reinterpret_cast<const uint64_t *>(src+24)) {}
+	virtual ~Hash256() {}
 
 	inline uint32_t getHash(void) const
 	{
-		const uint32_t *h = (const uint32_t *)&mWord0;
+		const uint32_t *h = reinterpret_cast<const uint32_t *>(&mWord0);
 		return h[0] ^ h[1] ^ h[2] ^ h[3] ^ h[4] ^ h[5] ^ h[6] ^ h[7];
 	}
 
@@ -207,18 +192,8 @@ static void fprintReverseHash(FILE *fph,const uint8_t *hash)
 class BlockHeader : public Hash256
 {
 public:
-	BlockHeader(void)
-	{
-		mFileIndex = 0;
-		mFileOffset = 0;
-		mBlockLength = 0;
-	}
-	BlockHeader(const Hash256 &h) : Hash256(h)
-	{
-		mFileIndex = 0;
-		mFileOffset = 0;
-		mBlockLength = 0;
-	}
+	BlockHeader(void):mFileIndex(0),mFileOffset(0),mBlockLength(0){}
+	BlockHeader(const Hash256 &h) : Hash256(h),mFileIndex(0),mFileOffset(0),mBlockLength(0){}
 	uint32_t	mFileIndex;
 	uint32_t	mFileOffset;
 	uint32_t	mBlockLength;
@@ -273,7 +248,7 @@ static const char * formatNumber(int32_t number) // JWR  format this integer int
 
 	char *source = scratch;
 	char *str = dest;
-	uint32_t len = (uint32_t)strlen(scratch);
+	uint32_t len = static_cast<uint32_t>(strlen(scratch));
 	if ( scratch[0] == '-' )
 	{
 		*str++ = '-';
@@ -294,17 +269,12 @@ static const char * formatNumber(int32_t number) // JWR  format this integer int
 class FileLocation : public Hash256
 {
 public:
-	FileLocation(void)
+	FileLocation(void):mFileIndex(0),mFileOffset(0),mFileLength(0),mTransactionIndex(0)
 	{
 
 	}
-	FileLocation(const Hash256 &h,uint32_t fileIndex,uint32_t fileOffset,uint32_t fileLength,uint32_t transactionIndex) : Hash256(h)
-	{
-		mFileIndex = fileIndex;
-		mFileOffset = fileOffset;
-		mFileLength = fileLength;
-		mTransactionIndex = transactionIndex;
-	}
+	FileLocation(const Hash256 &h,uint32_t fileIndex,uint32_t fileOffset,uint32_t fileLength,uint32_t transactionIndex) : Hash256(h),
+			mFileIndex(fileIndex),mFileOffset(fileOffset),mFileLength(fileLength),mTransactionIndex(transactionIndex){}
 	uint32_t	mFileIndex;
 	uint32_t	mFileOffset;
 	uint32_t	mFileLength;
@@ -456,12 +426,7 @@ enum ScriptOpcodes
 class SignatureStat
 {
 public:
-	SignatureStat(void)
-	{
-		mFlags = 0;
-		mCount = 0;
-		mValue = 0;
-	}
+	SignatureStat(void):mFlags(0),mCount(0),mValue(0){}
 	uint32_t	mFlags;
 	uint32_t	mCount;
 	uint64_t	mValue;
@@ -479,29 +444,28 @@ static SignatureStat	gSignatureStats[MAX_SIGNATURE_STAT];
 class TransactionBlockStat
 {
 public:
-	TransactionBlockStat(void)
-	{
-		mValues = NULL;
-		init();
-	}
+	TransactionBlockStat(void):mBlockCount(0),mBlockSize(0),mTransactionCount(0),mTransactionSize(0),mInputCount(0),mOutputCount(0),
+					mCoinBaseValue(0),mInputValue(0),mOutputValue(0),mFeeValue(0),mValues(NULL){}
+
+        void init(void)
+        {
+                mBlockCount = 0;
+                mBlockSize = 0;
+                mTransactionCount = 0;
+                mTransactionSize = 0;
+                mInputCount = 0;
+                mOutputCount = 0;
+                mCoinBaseValue = 0;
+                mInputValue = 0;
+                mOutputValue = 0;
+                mFeeValue = 0;
+        }
+
 	~TransactionBlockStat(void)
 	{
 		delete []mValues;
 	}
 
-	void init(void)
-	{
-		mBlockCount = 0;
-		mBlockSize = 0;
-		mTransactionCount = 0;
-		mTransactionSize = 0;
-		mInputCount = 0;
-		mOutputCount = 0;
-		mCoinBaseValue = 0;
-		mInputValue = 0;
-		mOutputValue = 0;
-		mFeeValue = 0;
-	}
 	uint32_t	mBlockCount;
 	uint32_t	mBlockSize;
 	uint32_t	mTransactionCount;
@@ -513,6 +477,9 @@ public:
 	uint64_t	mOutputValue;
 	uint64_t	mFeeValue;
 	uint64_t	*mValues;
+private:
+	TransactionBlockStat(const TransactionBlockStat&);
+	TransactionBlockStat &operator=(const TransactionBlockStat&);
 };
 
 
@@ -523,7 +490,7 @@ public:
 	inline uint8_t readU8(void)
 	{
 		assert( (mBlockRead+sizeof(uint8_t)) <= mBlockEnd );
-		uint8_t ret = *(uint8_t *)mBlockRead;
+		uint8_t ret = *reinterpret_cast<uint8_t const *>(mBlockRead);
 		mBlockRead+=sizeof(uint8_t);
 		return ret;
 	}
@@ -532,7 +499,7 @@ public:
 	inline uint16_t readU16(void)
 	{
 		assert( (mBlockRead+sizeof(uint16_t)) <= mBlockEnd );
-		uint16_t ret = *(uint16_t *)mBlockRead;
+		uint16_t ret = *reinterpret_cast<uint16_t const *>(mBlockRead);
 		mBlockRead+=sizeof(uint16_t);
 		return ret;
 	}
@@ -541,7 +508,7 @@ public:
 	inline uint32_t readU32(void)
 	{
 		assert( (mBlockRead+sizeof(uint32_t)) <= mBlockEnd );
-		uint32_t ret = *(uint32_t *)mBlockRead;
+		uint32_t ret = *reinterpret_cast<uint32_t const *>(mBlockRead);
 		mBlockRead+=sizeof(uint32_t);
 		return ret;
 	}
@@ -550,7 +517,7 @@ public:
 	inline uint64_t readU64(void)
 	{
 		assert( (mBlockRead+sizeof(uint64_t)) <= mBlockEnd );
-		uint64_t ret = *(uint64_t *)mBlockRead;
+		uint64_t ret = *reinterpret_cast<uint64_t const *>(mBlockRead);
 		mBlockRead+=sizeof(uint64_t);
 		return ret;
 	}
@@ -573,27 +540,27 @@ public:
 		uint8_t v = readU8();
 		if ( v < 0xFD ) // If it's less than 0xFD use this value as the unsigned integer
 		{
-			ret = (uint32_t)v;
+			ret = static_cast<uint32_t>(v);
 		}
 		else
 		{
 			uint16_t v = readU16();
 			if ( v < 0xFFFF )
 			{
-				ret = (uint32_t)v;
+				ret = static_cast<uint32_t>(v);
 			}
 			else
 			{
 				uint32_t v = readU32();
 				if ( v < 0xFFFFFFFF )
 				{
-					ret = (uint32_t)v;
+					ret = static_cast<uint32_t>(v);
 				}
 				else
 				{
 					assert(0); // never expect to actually encounter a 64bit integer in the block-chain stream; it's outside of any reasonable expected value
 					uint64_t v = readU64();
-					ret = (uint32_t)v;
+					ret = static_cast<uint32_t>(v);
 				}
 			}
 		}
@@ -654,6 +621,20 @@ public:
 			case BlockChain::KT_SCRIPT_HASH:
 				strcat(o.asciiAddress,"*SCRIPT_HASH*");
 				break;
+			case BlockChain::KT_UNKNOWN:
+				break;
+                        case BlockChain::KT_UNCOMPRESSED_PUBLIC_KEY:
+				break;
+                        case BlockChain::KT_COMPRESSED_PUBLIC_KEY:
+				break;
+                        case BlockChain::KT_RIPEMD160:
+				break;
+                        case BlockChain::KT_TRUNCATED_COMPRESSED_KEY:
+				break;
+                        case BlockChain::KT_ZERO_LENGTH:
+				break;
+                        case BlockChain::KT_LAST:
+				break;
 		}
 		for (uint32_t i=0; i<MAX_MULTISIG; i++)
 		{
@@ -675,7 +656,7 @@ public:
 		if ( o.keyType == BlockChain::KT_MULTISIG )
 		{
 			uint8_t hash[20];
-			computeRIPEMD160(&o.addresses,25*MAX_MULTISIG,hash);
+			computeRIPEMD160(reinterpret_cast<const uint8_t*>(&o.addresses),25*MAX_MULTISIG,hash);
 			bitcoinRIPEMD160ToAddress(hash,o.multisig.address);
 		}
 	}
@@ -708,6 +689,10 @@ public:
 				break;
 			case BlockChain::KT_SCRIPT_HASH:
 				ret = "SCRIPT_HASH";
+				break;
+			case BlockChain::KT_UNKNOWN:
+				break;
+			case BlockChain::KT_LAST:
 				break;
 		}
 		return ret;
@@ -974,6 +959,12 @@ public:
 					}
 				}
 				break;
+			case BlockChain::KT_ZERO_LENGTH:
+				break;
+			case BlockChain::KT_LAST:
+				break;
+			case BlockChain::KT_UNKNOWN:
+				break;
 		}
 		output.keyTypeName = getKeyType(output.keyType);
 		getAsciiAddress(output);
@@ -1069,9 +1060,9 @@ public:
 				transaction.lockTime = readU32();
 
 				{
-					transaction.transactionLength = (uint32_t)(mBlockRead - transactionBegin);
+					transaction.transactionLength = static_cast<uint32_t>(mBlockRead - transactionBegin);
 					transaction.fileIndex = fileIndex;
-					transaction.fileOffset = fileOffset + (uint32_t)(transactionBegin-mBlockData);
+					transaction.fileOffset = fileOffset + static_cast<uint32_t>(transactionBegin-mBlockData);
 					transaction.transactionIndex = transactionIndex;
 					transactionIndex++;
 					computeSHA256(transactionBegin,transaction.transactionLength,transaction.transactionHash);
@@ -1124,7 +1115,7 @@ public:
 	bool processBlockData(const void *blockData,uint32_t blockLength,uint32_t &transactionIndex)
 	{
 		bool ret = true;
-		mBlockData = (const uint8_t *)blockData;
+		mBlockData = reinterpret_cast<const uint8_t *>(blockData);
 		mBlockRead = mBlockData;	// Set the block-read scan pointer.
 		mBlockEnd = &mBlockData[blockLength]; // Mark the end of block pointer
 		blockFormatVersion = readU32();	// Read the format version
@@ -1158,11 +1149,11 @@ public:
 		return ret;
 	}
 
-	const BlockChain::BlockTransaction *processTransactionData(const void *transactionData,uint32_t transactionLength)
+	BlockChain::BlockTransaction *processTransactionData(const void *transactionData,uint32_t transactionLength)
 	{
 		uint32_t transactionIndex=0;
 		BlockChain::BlockTransaction *ret = &mTransactions[0];
-		mBlockData = (const uint8_t *)transactionData;
+		mBlockData = reinterpret_cast<const uint8_t *>(transactionData);
 		mBlockRead = mBlockData;	// Set the block-read scan pointer.
 		mBlockEnd = &mBlockData[transactionLength]; // Mark the end of block pointer
 
@@ -1174,7 +1165,7 @@ public:
 		}
 		return ret;
 	}
-
+        BlockImpl():mBlockRead(NULL),mBlockEnd(NULL),mBlockData(NULL){}
 
 	const uint8_t					*mBlockRead;				// The current read buffer address in the block
 	const uint8_t					*mBlockEnd;					// The EOF marker for the block
@@ -1182,7 +1173,9 @@ public:
 	BlockChain::BlockTransaction	mTransactions[MAX_BLOCK_TRANSACTION];	// Holds the array of transactions
 	BlockChain::BlockInput			mInputs[MAX_BLOCK_INPUTS];	// The input arrays
 	BlockChain::BlockOutput			mOutputs[MAX_BLOCK_OUTPUTS]; // The output arrays
-
+private:
+	BlockImpl(const BlockImpl&);
+        BlockImpl &operator=(const BlockImpl&);
 };
 
 class Transaction;
@@ -1190,9 +1183,11 @@ class Transaction;
 class BitcoinAddressData
 {
 public:
-	BitcoinAddressData(void)
+	BitcoinAddressData(void):mNext(NULL),mBitcoinAddressFlags(0),mLastInputTime(0),mLastOutputTime(0),mFirstOutputTime(0),mTotalSent(0),
+					mTotalReceived(0),mInputCount(0),mOutputCount(0),mTransactionIndex(0),mTransactionCount(0),mTransactions(0)
 	{
-		memset(this,0,sizeof(BitcoinAddressData));
+                
+		memset(mMultiSig,0,sizeof(uint32_t)*5);
 	}
 
 	BitcoinAddressData *mNext;
@@ -1218,11 +1213,7 @@ public:
 class BitcoinAddressDataChunk
 {
 public:
-	BitcoinAddressDataChunk(void)
-	{
-		mCount = 0;
-		mNext = NULL;
-	}
+	BitcoinAddressDataChunk(void):mNext(NULL),mCount(0){}
 
 	~BitcoinAddressDataChunk(void)
 	{
@@ -1242,17 +1233,15 @@ public:
 	BitcoinAddressDataChunk	*mNext;
 	uint32_t				mCount;
 	BitcoinAddressData		mData[BITCOIN_ADDRESS_CHUNK_SIZE];
+private:
+	BitcoinAddressDataChunk(const BitcoinAddressDataChunk&);
+        BitcoinAddressDataChunk &operator=(const BitcoinAddressDataChunk &);
 };
 
 class BitcoinAddressDataFactory
 {
 public:
-	BitcoinAddressDataFactory(void)
-	{
-		mChunkHead = new BitcoinAddressDataChunk;
-		mChunkCurrent = mChunkHead;
-		mFreeList = NULL;
-	}
+	BitcoinAddressDataFactory(void):mChunkHead(new BitcoinAddressDataChunk),mChunkCurrent(mChunkHead),mFreeList(NULL){}
 
 	~BitcoinAddressDataFactory(void)
 	{
@@ -1298,6 +1287,9 @@ public:
 	BitcoinAddressDataChunk	*mChunkHead;
 	BitcoinAddressDataChunk *mChunkCurrent;
 	BitcoinAddressData		*mFreeList;
+private:
+	BitcoinAddressDataFactory(const BitcoinAddressDataFactory&);
+        BitcoinAddressDataFactory &operator=(const BitcoinAddressDataFactory&);
 };
 
 BitcoinAddressDataFactory *gBitcoinAddressDataFactory=NULL;
@@ -1318,22 +1310,19 @@ public:
 		BAT_SCRIPT_HASH			= (1<<7),
 	};
 
-	BitcoinAddress(void)
-	{
-		mWord0 = 0;
-		mWord1 = 0;
-		mWord2 = 0;
-		mData = NULL; // todo...
-	}
+	BitcoinAddress(void):mWord0(0),mWord1(0),mWord2(0),mData(NULL){}
 
-	BitcoinAddress(const uint8_t address[20]) 
-	{
-		mWord0 = *(const uint64_t *)(address);
-		mWord1 = *(const uint64_t *)(address+8);
-		mWord2 = *(const uint32_t *)(address+16);
-		mData = NULL;
+	BitcoinAddress(const uint8_t address[20]):mWord0(*reinterpret_cast<const uint64_t *>(address)),
+                     					mWord1(*reinterpret_cast<const uint64_t *>(address+8)),
+							mWord2(*reinterpret_cast<const uint32_t *>(address+16)),mData(0){}
+	BitcoinAddress &operator=(const BitcoinAddress & other){
+		mWord0=other.mWord0;
+		mWord1=other.mWord1;
+		mWord2=other.mWord2;
+		mData=other.mData; //FIXME: I'm pretty sure this isn't safe but at least weǘe made it explicit now.
+		return *this;
 	}
-
+		
 	~BitcoinAddress(void)
 	{
 		if ( mData )
@@ -1416,7 +1405,7 @@ public:
 
 	uint32_t getHash(void) const
 	{
-		const uint32_t *h = (const uint32_t *)&mWord0;
+		const uint32_t *h = reinterpret_cast<const uint32_t *>(&mWord0);
 		return h[0] ^ h[1] ^ h[2] ^ h[3] ^ h[4];
 	}
 
@@ -1450,7 +1439,7 @@ public:
 			double seconds = difftime(currentTime,time_t(lastUsed));
 			double minutes = seconds/60;
 			double hours = minutes/60;
-			days = (uint32_t) (hours/24);
+			days = static_cast<uint32_t>(hours/24);
 		}
 		return days;
 	}
@@ -1477,24 +1466,21 @@ public:
 	uint64_t		mWord1; // 16
 	uint32_t		mWord2; // 20
 private:
+        BitcoinAddress(const BitcoinAddress&);
 	BitcoinAddressData	*mData;
 };
 
 
 
-
+#ifdef WIN32
 #pragma warning(push)
 #pragma warning(disable:4100)
-
+#endif
 
 class TransactionOutput
 {
 public:
-	TransactionOutput(void)
-	{
-		mValue = 0;
-		mAddress = 0;
-	}
+	TransactionOutput(void):mValue(0),mAddress(0){}
 	uint64_t	mValue;		// value of the output.
 	uint32_t	mAddress;	// address of the output. 
 };
@@ -1502,31 +1488,27 @@ public:
 class TransactionInput
 {
 public:
-	TransactionInput(void)
-	{
-		mOutput = NULL;
-		mSignatureFormat = BlockChain::SF_ABNORMAL;
-	}
+	TransactionInput(void):mSignatureFormat(BlockChain::SF_ABNORMAL),mOutput(NULL){}
 	uint32_t			mSignatureFormat;
 	TransactionOutput	*mOutput;	// All inputs are the result of a previous output or block-reward mining fee (otherwise known as 'coinbase')
+private:
+	TransactionInput(const TransactionInput&);
+	TransactionInput &operator=(const TransactionInput &);
 };
 
 class Transaction
 {
 public:
-	Transaction(void)
-	{
-		mInputCount = 0;
-		mOutputCount = 0;
-		mInputs = 0;
-		mOutputCount = 0;
-	}
+	Transaction(void):mBlock(0),mTime(0),mInputCount(0),mOutputCount(0),mInputs(NULL),mOutputs(NULL) {}
 	uint32_t			mBlock;
 	uint32_t			mTime;
 	uint32_t			mInputCount;
 	uint32_t			mOutputCount;
 	TransactionInput	*mInputs;
 	TransactionOutput	*mOutputs;
+private:
+	Transaction(const Transaction&);
+	Transaction &operator=(const Transaction&);
 };
 
 
@@ -1562,6 +1544,7 @@ const char * getAgeString(AgeMarker m)
 		case AM_THREE_YEARS: ret = "Two to Three Years"; break;
 		case AM_FOUR_YEARS: ret = "Three to Four Years"; break;
 		case AM_FIVE_YEARS: ret = "Four to Six Years"; break;
+                case AM_LAST: break;
 	}
 	return ret;
 }
@@ -1569,11 +1552,7 @@ const char * getAgeString(AgeMarker m)
 class AgeStat
 {
 public:
-	AgeStat(void)
-	{
-		mTotalValue = 0;
-		mCount = 0;
-	}
+	AgeStat(void):mTotalValue(0),mCount(0){}
 	void addValue(uint64_t b)
 	{
 		mTotalValue+=b;
@@ -1636,11 +1615,7 @@ enum StatSize
 class StatValue
 {
 public:
-	StatValue(void)
-	{
-		mCount  = 0;
-		mValue = 0;
-	}
+	StatValue(void):mCount(0),mValue(0){}
 	uint32_t	mCount;
 	uint64_t	mValue;
 };
@@ -1648,16 +1623,8 @@ public:
 class StatAddress
 {
 public:
-	StatAddress(void)
-	{
-		mAddress = 0;
-		mTotalReceived = 0;
-		mTotalSent = 0;
-		mLastTime = 0;
-		mTransactionCount = 0;
-		mInputCount = 0;
-		mOutputCount = 0;
-	}
+	StatAddress(void):mAddress(0),mTotalSent(0),mTotalReceived(0),mFirstTime(0),mLastTime(0),mTransactionCount(0),mInputCount(0),mOutputCount(0)
+	{}
 
 	bool operator==(const StatAddress &a) const
 	{
@@ -1689,25 +1656,9 @@ public:
 class StatRow
 {
 public:
-	StatRow(void)
-	{
-		mTime = 0;
-		mCount = 0;
-		mValue = 0;
-		mZombieTotal = 0;
-		mZombieCount = 0;
-		mAddressCount = 0;
-		mAddresses = NULL;
-		mNewAddressCount = 0;
-		mDeleteAddressCount = 0;
-		mChangeAddressCount = 0;
-		mSameAddressCount = 0;
-		mRiseFromDeadCount = 0;
-		mRiseFromDeadAmount = 0;
-		mNewAddresses = NULL;
-		mChangedAddresses = NULL;
-		mDeletedAddresses = NULL;
-	}
+	StatRow(void):mZombieTotal(0),mZombieCount(0),mTime(0),mCount(0),mValue(0),mAddressCount(0),mAddresses(NULL),mNewAddressCount(0),
+			mDeleteAddressCount(0),mChangeAddressCount(0),mSameAddressCount(0),mRiseFromDeadCount(0),mRiseFromDeadAmount(0),
+			mNewAddresses(NULL),mChangedAddresses(NULL),mDeletedAddresses(NULL){}
 
 	~StatRow(void)
 	{
@@ -1736,6 +1687,9 @@ public:
 	StatAddress	*mNewAddresses;
 	StatAddress	*mChangedAddresses;
 	uint32_t	*mDeletedAddresses;
+private:
+	StatRow(const StatRow&);
+        StatRow &operator=(const StatRow&);
 };
 
 #define MAX_STAT_COUNT (365*6) // reserve room for up to 6 years of 365 days entries...
@@ -1744,16 +1698,16 @@ public:
 class SortByBalance : public HeapSortPointers
 {
 public:
-	SortByBalance(BitcoinAddress **addresses,uint32_t count)
+	SortByBalance(BitcoinAddress **addresses,uint32_t count):HeapSortPointers()
 	{
-		HeapSortPointers::heapSort((void **)addresses,(int32_t)count);
+		HeapSortPointers::heapSort(reinterpret_cast<void **>(addresses),static_cast<int32_t>(count));
 	}
 
 	// -1 less, 0 equal, +1 greater.
 	virtual int32_t compare(void *p1,void *p2)
 	{
-		BitcoinAddress *a1 = (BitcoinAddress *)p1;
-		BitcoinAddress *a2 = (BitcoinAddress *)p2;
+		BitcoinAddress *a1 = reinterpret_cast<BitcoinAddress *>(p1);
+		BitcoinAddress *a2 = reinterpret_cast<BitcoinAddress *>(p2);
 		uint64_t balance1 = a1->getData().mTotalReceived-a1->getData().mTotalSent;
 		uint64_t balance2 = a2->getData().mTotalReceived-a2->getData().mTotalSent;
 		if ( balance1 == balance2 ) return 0;
@@ -1764,16 +1718,16 @@ public:
 class SortByAge : public HeapSortPointers
 {
 public:
-	SortByAge(BitcoinAddress **addresses,uint32_t count)
+	SortByAge(BitcoinAddress **addresses,uint32_t count):HeapSortPointers()
 	{
-		HeapSortPointers::heapSort((void **)addresses,(int32_t)count);
+		HeapSortPointers::heapSort(reinterpret_cast<void **>(addresses),static_cast<int32_t>(count));
 	}
 
 	// -1 less, 0 equal, +1 greater.
 	virtual int32_t compare(void *p1,void *p2)
 	{
-		BitcoinAddress *a1 = (BitcoinAddress *)p1;
-		BitcoinAddress *a2 = (BitcoinAddress *)p2;
+		BitcoinAddress *a1 = reinterpret_cast<BitcoinAddress *>(p1);
+		BitcoinAddress *a2 = reinterpret_cast<BitcoinAddress *>(p2);
 		uint32_t age1 = a1->getDaysSinceLastUsed(0);
 		uint32_t age2 = a2->getDaysSinceLastUsed(0);
 		if ( age1 == age2 ) return 0;
@@ -1823,67 +1777,61 @@ static void logSignatureFormat(uint32_t ret,FILE *fph)
 class ZombieFinder
 {
 public:
-	ZombieFinder(void)
-	{
-		mLastBalance = 0;
-		mLastAge = 0;
-		mLastDate = 0;
-		mAddress = NULL;
-	}
+	ZombieFinder(void):mLastBalance(0),mLastDate(0),mLastAge(0),mAddress(NULL){}
 	uint64_t		mLastBalance;
 	uint32_t		mLastDate;
 	uint32_t		mLastAge;
 	BitcoinAddress	*mAddress;
+private:
+	ZombieFinder(const ZombieFinder&);
+	ZombieFinder &operator=(const ZombieFinder&);
 };
 
+
+/*
+        ZombieFinder                            *mZombieFinder;
+        BitcoinAddressHashMap           mAddresses;                             // A hash map of every single bitcoin address ever referenced to a much shorter integer to save memory
+
+        uint32_t                                        mTransactionCount;
+        uint32_t                                        mTotalInputCount;
+        uint32_t                                        mTotalOutputCount;
+        Transaction                                     *mTransactions;
+        TransactionInput                        *mInputs;
+        TransactionOutput                       *mOutputs;
+        uint32_t                                        mBlockCount;
+        Transaction                                     **mBlocks;
+        Transaction                                     **mTransactionReferences;
+        uint32_t                                        mStatCount;
+*/
 
 class BitcoinTransactionFactory
 {
 public:
-	BitcoinTransactionFactory(void)
+	BitcoinTransactionFactory(void):mLastBitcoinTotal(0),mKeyReport(NULL),mZombieOutput(NULL),
+					mZombieFinder(new ZombieFinder[MAX_BITCOIN_ADDRESSES]),mAddresses(),mTransactionCount(0),
+					mTotalInputCount(0),mTotalOutputCount(0),mTransactions(NULL),mInputs(NULL),mOutputs(NULL),
+					mBlockCount(0),mBlocks(NULL),mTransactionReferences(NULL),mStatCount(0)
 	{
-		mTransactionReferences = NULL;
-		mTransactions = NULL;
-		mInputs = NULL;
-		mOutputs = NULL;
-		mBlocks = NULL;
-		mTransactionCount = 0;
-		mTotalInputCount = 0;
-		mTotalOutputCount = 0;
-		mBlockCount = 0;
-		mStatCount = 0;
-
 		mAddresses.setMemoryMapFileName("@BitcoinAddresses.mmap");
-
 		mStatLimits[SS_ZERO] = 0;
 		mStatLimits[SS_ONE_MBTC] = ONE_MBTC;
 		mStatLimits[SS_FIVE_MBTC] = ONE_MBTC*5;
-
 		mStatLimits[SS_TEN_MBTC] = ONE_MBTC*10;
 		mStatLimits[SS_FIFTY_MBTC] = ONE_MBTC*50;
-
 		mStatLimits[SS_HUNDRED_MBTC] = ONE_MBTC*100;
 		mStatLimits[SS_FIVE_HUNDRED_MBTC] = ONE_MBTC*500;
-
-
 		mStatLimits[SS_ONE_BTC] = ONE_BTC;
 		mStatLimits[SS_FIVE_BTC] = ONE_BTC*5;
-
 		mStatLimits[SS_TEN_BTC] = ONE_BTC*10;
-		mStatLimits[SS_FIFTY_BTC] = (uint64_t)ONE_BTC*(uint64_t)50;
-
-		mStatLimits[SS_HUNDRED_BTC] = (uint64_t)ONE_BTC*(uint64_t)100;
-		mStatLimits[SS_FIVE_HUNDRED_BTC] = (uint64_t)ONE_BTC*(uint64_t)500;
-
-		mStatLimits[SS_ONE_THOUSAND_BTC] = (uint64_t)ONE_BTC*(uint64_t)1000;
-		mStatLimits[SS_FIVE_THOUSAND_BTC] = (uint64_t)ONE_BTC*(uint64_t)5000;
-
-		mStatLimits[SS_TEN_THOUSAND_BTC] = (uint64_t)ONE_BTC*(uint64_t)10000;
-		mStatLimits[SS_FIFTY_THOUSAND_BTC] = (uint64_t)ONE_BTC*(uint64_t)50000;
-		mStatLimits[SS_HUNDRED_THOUSAND_BTC] = (uint64_t)ONE_BTC*(uint64_t)100000;
-		mStatLimits[SS_MAX_BTC] = (uint64_t)ONE_BTC*(uint64_t)21000000;
-
-
+		mStatLimits[SS_FIFTY_BTC] = static_cast<uint64_t>(ONE_BTC)*static_cast<uint64_t>(50);
+		mStatLimits[SS_HUNDRED_BTC] = static_cast<uint64_t>(ONE_BTC)*static_cast<uint64_t>(100);
+		mStatLimits[SS_FIVE_HUNDRED_BTC] = static_cast<uint64_t>(ONE_BTC)*static_cast<uint64_t>(500);
+		mStatLimits[SS_ONE_THOUSAND_BTC] = static_cast<uint64_t>(ONE_BTC)*static_cast<uint64_t>(1000);
+		mStatLimits[SS_FIVE_THOUSAND_BTC] = static_cast<uint64_t>(ONE_BTC)*static_cast<uint64_t>(5000);
+		mStatLimits[SS_TEN_THOUSAND_BTC] = static_cast<uint64_t>(ONE_BTC)*static_cast<uint64_t>(10000);
+		mStatLimits[SS_FIFTY_THOUSAND_BTC] = static_cast<uint64_t>(ONE_BTC)*static_cast<uint64_t>(50000);
+		mStatLimits[SS_HUNDRED_THOUSAND_BTC] = static_cast<uint64_t>(ONE_BTC)*static_cast<uint64_t>(100000);
+		mStatLimits[SS_MAX_BTC] = static_cast<uint64_t>(ONE_BTC)*static_cast<uint64_t>(21000000);
 		mStatLabel[SS_ZERO] = "ZERO";
 		mStatLabel[SS_ONE_MBTC] = "<1MBTC";
 		mStatLabel[SS_FIVE_MBTC] = "<5MBTC";
@@ -1913,14 +1861,9 @@ public:
 		mStatLabel[SS_THREE_YEARS] = "Three Years";
 		mStatLabel[SS_FOUR_YEARS] = "Four Years";
 		mStatLabel[SS_FIVE_YEARS] = "Five Years";
-
-		mZombieFinder = new ZombieFinder[MAX_BITCOIN_ADDRESSES];
-		mZombieOutput = NULL;
-		mKeyReport = NULL;
-		mLastBitcoinTotal = 0;
 	}
 
-	~BitcoinTransactionFactory(void)
+	virtual ~BitcoinTransactionFactory(void)
 	{
 		if ( mZombieOutput )
 		{
@@ -1968,11 +1911,11 @@ public:
 			ret = mBlocks[index];
 			if ( (index+1) == mBlockCount )
 			{
-				tcount = (uint32_t)(&mTransactions[mTransactionCount] - ret);
+				tcount = static_cast<uint32_t>(&mTransactions[mTransactionCount] - ret);
 			}
 			else
 			{
-				tcount = (uint32_t)(mBlocks[index+1] - ret);
+				tcount = static_cast<uint32_t>(mBlocks[index+1] - ret);
 			}
 		}
 		return ret;
@@ -2022,7 +1965,7 @@ public:
 
 	uint32_t getAddressCount(void) const
 	{
-		return (uint32_t)mAddresses.size();
+		return static_cast<uint32_t>(mAddresses.size());
 	}
 
 	Transaction * getSingleTransaction(uint32_t index)
@@ -2104,7 +2047,7 @@ public:
 		{
 			BitcoinAddress *ba = mAddresses.getKey(a-1);
 			uint8_t address1[25];
-			bitcoinRIPEMD160ToAddress((const uint8_t *)ba,address1);
+			bitcoinRIPEMD160ToAddress(reinterpret_cast<const uint8_t *>(ba),address1);
 			bitcoinAddressToAscii(address1,scratch,256);
 			ret = scratch;
 		}
@@ -2157,20 +2100,20 @@ public:
 				strcpy(scratch,"*STEALTH*");
 				uint8_t address1[25];
 				char temp[256];
-				bitcoinRIPEMD160ToAddress((const uint8_t *)ba,address1);
+				bitcoinRIPEMD160ToAddress(reinterpret_cast<const uint8_t *>(ba),address1);
 				bitcoinAddressToAscii(address1,temp,256);
 				strcat(scratch,temp);
 			}
 			else if ( data.mBitcoinAddressFlags & BitcoinAddress::BAT_SCRIPT_HASH )
 			{
 				uint8_t address1[25];
-				bitcoinRIPEMD160ToScriptAddress((const uint8_t *)ba,address1);
+				bitcoinRIPEMD160ToScriptAddress(reinterpret_cast<const uint8_t *>(ba),address1);
 				bitcoinAddressToAscii(address1,scratch,256);
 			}
 			else
 			{
 				uint8_t address1[25];
-				bitcoinRIPEMD160ToAddress((const uint8_t *)ba,address1);
+				bitcoinRIPEMD160ToAddress(reinterpret_cast<const uint8_t *>(ba),address1);
 				bitcoinAddressToAscii(address1,scratch,256);
 			}
 			ret = scratch;
@@ -2193,7 +2136,7 @@ public:
 		plotCount = 0;
 
 
-		uint64_t mbtc = (uint64_t)(minBalance*ONE_BTC);
+		uint64_t mbtc = static_cast<uint64_t>(minBalance*ONE_BTC);
 		logMessage("Scanning %s public key addresses looking for ones with a balance greater than or equal to %0.4f.\r\n", formatNumber(mAddresses.size()), minBalance );
 
 		for (uint32_t i=0; i<mAddresses.size(); i++) // print one in every 10,000 addresses (just for testing right now)
@@ -2231,9 +2174,9 @@ public:
 			double seconds = difftime(currentTime,time_t(lastUsed));
 			double minutes = seconds/60;
 			double hours = minutes/60;
-			uint32_t days = (uint32_t) (hours/24);
+			uint32_t days = static_cast<uint32_t>(hours/24);
 			uint32_t adr = mAddresses.getIndex(ba)+1;
-			fprintf(fph,"%s,%0.4f,%4d\r\n", getKey(adr), (float) balance / ONE_BTC, days );
+			fprintf(fph,"%s,%0.4f,%4d\r\n", getKey(adr), static_cast<float>(balance) / ONE_BTC, days );
 		}
 		delete []sortPointers;
 		fclose(fph);
@@ -2252,7 +2195,7 @@ public:
 		tipJar(fph);
 
 
-		uint64_t mbtc = (uint64_t)(minBalance*ONE_BTC);
+		uint64_t mbtc = static_cast<uint64_t>(minBalance*ONE_BTC);
 		logMessage("Scanning %s public key addresses looking for ones with a balance greater than or equal to %0.4f.\r\n", formatNumber(mAddresses.size()), minBalance );
 
 		uint32_t plotCount = mAddresses.size();
@@ -2292,9 +2235,9 @@ public:
 			double seconds = difftime(currentTime,time_t(lastUsed));
 			double minutes = seconds/60;
 			double hours = minutes/60;
-			uint32_t days = (uint32_t) (hours/24);
+			uint32_t days = static_cast<uint32_t> (hours/24);
 			uint32_t adr = mAddresses.getIndex(ba)+1;
-			fprintf(fph,"%s,%0.4f,%4d\r\n", getKey(adr), (float) balance / ONE_BTC, days );
+			fprintf(fph,"%s,%0.4f,%4d\r\n", getKey(adr), static_cast<float>(balance) / ONE_BTC, days );
 		}
 		delete []sortPointers;
 		fclose(fph);
@@ -2325,9 +2268,9 @@ public:
 		logMessage("    Transaction #%s From Block: %s has %s inputs and %s outputs time: %s.\r\n", formatNumber(index), formatNumber(t->mBlock), formatNumber(t->mInputCount), formatNumber(t->mOutputCount), getTimeString(t->mTime) );
 
 		logMessage("    Total Input: %0.9f Total Output: %0.9f : Fees: %0.9f\r\n",
-			(float)totalInput / ONE_BTC,
-			(float) totalOutput / ONE_BTC,
-			(float)((totalOutput-totalInput)-coinBase) / ONE_BTC );
+			static_cast<float>(totalInput) / ONE_BTC,
+			static_cast<float>(totalOutput) / ONE_BTC,
+			static_cast<float>((totalOutput-totalInput)-coinBase) / ONE_BTC );
 
 		for (uint32_t i=0; i<t->mInputCount; i++)
 		{
@@ -2343,7 +2286,7 @@ public:
 				{
 					logMessage("         Input  ");
 				}
-				logMessage("%d : %s[%d] : Value %0.9f\r\n", i, getKey(o.mAddress),o.mAddress, (float)o.mValue / ONE_BTC );
+				logMessage("%d : %s[%d] : Value %0.9f\r\n", i, getKey(o.mAddress),o.mAddress, static_cast<float>(o.mValue) / ONE_BTC );
 			}
 			else
 			{
@@ -2362,7 +2305,7 @@ public:
 			{
 				logMessage("         Output  ");
 			}
-			logMessage("%d : %s[%d] : Value %0.9f\r\n", i, getKey(o.mAddress),o.mAddress, (float)o.mValue / ONE_BTC );
+			logMessage("%d : %s[%d] : Value %0.9f\r\n", i, getKey(o.mAddress),o.mAddress, static_cast<float>(o.mValue) / ONE_BTC );
 		}
 	}
 
@@ -2419,7 +2362,7 @@ public:
 			{
 				BitcoinAddress *ba = mAddresses.getKey(i);
 				uint64_t balance = ba->getData().mTotalReceived-ba->getData().mTotalSent;
-				uint32_t btc = (uint32_t)(balance/ONE_BTC);
+				uint32_t btc = static_cast<uint32_t>(balance/ONE_BTC);
 				if ( balance == 0 )
 				{
 					counts[ST_ZERO]++;
@@ -2471,35 +2414,35 @@ public:
 
 			logMessage("Found %s 'dust' addresses (less than 1mbtc) with a total balance of %0.5f BTC\r\n", 
 				formatNumber( counts[ST_DUST] ), 
-				(float)balances[ST_DUST] / ONE_BTC );
+				static_cast<float>(balances[ST_DUST]) / ONE_BTC );
 
 			logMessage("Found %s addresses with a balance greater than 1mbtc but less than 1btc, total balance %0.5f\r\n",
 				formatNumber(counts[ST_LESSONE]),
-				(float)balances[ST_LESSONE]/ONE_BTC );
+				static_cast<float>(balances[ST_LESSONE])/ONE_BTC );
 
 			logMessage("Found %s addresses with a balance greater than 1btc but less than 10btc, total btc: %s\r\n",
 				formatNumber(counts[ST_LESSTEN]),
-				formatNumber((uint32_t)balances[ST_LESSTEN]));
+				formatNumber(static_cast<uint32_t>(balances[ST_LESSTEN])));
 
 			logMessage("Found %s addresses with a balance greater than 10btc but less than 100btc, total: %s\r\n",
 				formatNumber(counts[ST_LESS_HUNDRED]),
-				formatNumber((uint32_t)balances[ST_LESS_HUNDRED]));
+				formatNumber(static_cast<uint32_t>(balances[ST_LESS_HUNDRED])));
 
 			logMessage("Found %s addresses with a balance greater than 100btc but less than 1,000btc, total: %s\r\n",
 				formatNumber(counts[ST_LESS_THOUSAND]),
-				formatNumber((uint32_t)balances[ST_LESS_THOUSAND]));
+				formatNumber(static_cast<uint32_t>(balances[ST_LESS_THOUSAND])));
 
 			logMessage("Found %s addresses with a balance greater than 1,000btc but less than 10,000btc, total: %s\r\n",
 				formatNumber(counts[ST_LESS_TEN_THOUSAND]),
-				formatNumber((uint32_t)balances[ST_LESS_TEN_THOUSAND]));
+				formatNumber(static_cast<uint32_t>(balances[ST_LESS_TEN_THOUSAND])));
 
 			logMessage("Found %s addresses with a balance greater than 10,000btc but less than 100,000btc, total: %s\r\n",
 				formatNumber(counts[ST_LESS_HUNDRED_THOUSAND]),
-				formatNumber((uint32_t)balances[ST_LESS_HUNDRED_THOUSAND]));
+				formatNumber(static_cast<uint32_t>(balances[ST_LESS_HUNDRED_THOUSAND])));
 
 			logMessage("Found %s addresses with a balance greater than 100,000btc, total: %s\r\n",
 				formatNumber(counts[ST_GREATER_HUNDRED_THOUSAND]),
-				formatNumber((uint32_t)balances[ST_GREATER_HUNDRED_THOUSAND]));
+				formatNumber(static_cast<uint32_t>(balances[ST_GREATER_HUNDRED_THOUSAND])));
 
 
 		}
@@ -2512,7 +2455,7 @@ public:
 
 				logMessage("===================================================================\r\n");
 				logMessage("Signature Format %d was encountered %s times and has the following states\r\n", i+1, formatNumber(s.mCount) );
-				logMessage("Signatures inputs of this format referred to outputs totaling this much value. %0.9f\r\n", (float) s.mValue / ONE_BTC );
+				logMessage("Signatures inputs of this format referred to outputs totaling this much value. %0.9f\r\n", static_cast<float>(s.mValue) / ONE_BTC );
 
 				if ( s.mFlags & BlockChain::SF_ABNORMAL ) logMessage("SF_ABNORMAL\r\n");
 				if ( s.mFlags & BlockChain::SF_COINBASE ) logMessage("SF_COINBASE\r\n");
@@ -2690,8 +2633,8 @@ public:
 
 					if ( isCoinBase )
 					{
-						uint64_t btc50 = (uint64_t)ONE_BTC*(uint64_t)50;
-						uint64_t btc25 = (uint64_t)ONE_BTC*(uint64_t)25;
+						uint64_t btc50 = static_cast<uint64_t>(ONE_BTC)*static_cast<uint64_t>(50);
+						uint64_t btc25 = static_cast<uint64_t>(ONE_BTC)*static_cast<uint64_t>(25);
 						if ( o.mValue >= btc50 )
 						{
 							if ( ba->getData().mBitcoinAddressFlags & (BitcoinAddress::BAT_COINBASE_50 | BitcoinAddress::BAT_COINBASE_25) )
@@ -2929,25 +2872,25 @@ public:
 			fprintf(mKeyReport,"%d,", oldKeyDust );
 			fprintf(mKeyReport,"%d,", oldKeyZero );
 			fprintf(mKeyReport,"%d,", oldKeyValue );
-			fprintf(mKeyReport,"%0.2f,", (float) newKeyValue / ONE_BTC );
-			fprintf(mKeyReport,"%0.2f,", (float) oldKeyValueIncrease / ONE_BTC );
-			fprintf(mKeyReport,"%0.2f,", (float) oldKeyValueDecrease / ONE_BTC );
+			fprintf(mKeyReport,"%0.2f,", static_cast<float>(newKeyValue) / ONE_BTC );
+			fprintf(mKeyReport,"%0.2f,", static_cast<float>(oldKeyValueIncrease) / ONE_BTC );
+			fprintf(mKeyReport,"%0.2f,", static_cast<float>(oldKeyValueDecrease) / ONE_BTC );
 
 			fprintf(mKeyReport,"%d,", multiSigCount );
 			fprintf(mKeyReport,"%d,", multiSigValueCount );
-			fprintf(mKeyReport,"%0.2f,", (float) multiSigValue / ONE_BTC );
+			fprintf(mKeyReport,"%0.2f,", static_cast<float>(multiSigValue) / ONE_BTC );
 
 			fprintf(mKeyReport,"%d,", stealthCount );
 			fprintf(mKeyReport,"%d,", stealthValueCount );
-			fprintf(mKeyReport,"%0.2f,", (float) stealthValue / ONE_BTC );
+			fprintf(mKeyReport,"%0.2f,", static_cast<float>(stealthValue) / ONE_BTC );
 
 			fprintf(mKeyReport,"%d,", scriptHashCount );
 			fprintf(mKeyReport,"%d,", scriptHashValueCount );
-			fprintf(mKeyReport,"%0.2f,", (float) scriptHashValue / ONE_BTC );
+			fprintf(mKeyReport,"%0.2f,", static_cast<float>(scriptHashValue) / ONE_BTC );
 
 
 
-			fprintf(mKeyReport,"%0.2f,", (float)bitcoinTotal / ONE_BTC );
+			fprintf(mKeyReport,"%0.2f,", static_cast<float>(bitcoinTotal) / ONE_BTC );
 
 			if ( bitcoinTotal < mLastBitcoinTotal )
 			{
@@ -3013,11 +2956,11 @@ public:
 						{
 							fprintf(mZombieOutput,"NORMAL,");
 						}
-						fprintf(mZombieOutput,"%0.4f,", (float)z.mLastBalance / ONE_BTC );
-						fprintf(mZombieOutput,"%0.4f,", (float) ba->getBalance() / ONE_BTC );
-						fprintf(mZombieOutput,"%0.4f,", (float) valueChange / ONE_BTC );
+						fprintf(mZombieOutput,"%0.4f,", static_cast<float>(z.mLastBalance) / ONE_BTC );
+						fprintf(mZombieOutput,"%0.4f,", static_cast<float>(ba->getBalance()) / ONE_BTC );
+						fprintf(mZombieOutput,"%0.4f,", static_cast<float>(valueChange) / ONE_BTC );
 						fprintf(mZombieOutput,"%d,", z.mLastAge );
-						float zombieScore = (float)z.mLastAge*(float)z.mLastAge*(float)z.mLastBalance / ONE_BTC;
+						float zombieScore = static_cast<float>(z.mLastAge)*static_cast<float>(z.mLastAge)*static_cast<float>(z.mLastBalance) / ONE_BTC;
 						totalZombieScore+=zombieScore;
 						fprintf(mZombieOutput,"%0.1f", zombieScore );
 						fprintf(mZombieOutput,"\r\n");
@@ -3028,8 +2971,8 @@ public:
 			fprintf(mZombieOutput,"\r\n");
 			fprintf(mZombieOutput,"%s,,SubTotals,,,,,,,", getDateString(refTime));
 			fprintf(mZombieOutput,"%d,", totalZombieCount );
-			fprintf(mZombieOutput,"%0.4f,", (float)totalZombieValue / ONE_BTC );
-			fprintf(mZombieOutput,"%0.4f,", (float)totalZombieValueChange / ONE_BTC );
+			fprintf(mZombieOutput,"%0.4f,", static_cast<float>(totalZombieValue) / ONE_BTC );
+			fprintf(mZombieOutput,"%0.4f,", static_cast<float>(totalZombieValueChange) / ONE_BTC );
 			fprintf(mZombieOutput,"%0.1f,", totalZombieScore );
 			fprintf(mZombieOutput,"\r\n");
 			fprintf(mZombieOutput,"\r\n");
@@ -3039,7 +2982,7 @@ public:
 	void printTopBalances(uint32_t tcount,float minBalance)
 	{
 		uint32_t plotCount = 0;
-		uint64_t mbtc = (uint64_t)(minBalance*ONE_BTC);
+		uint64_t mbtc = static_cast<uint64_t>(minBalance*ONE_BTC);
 		for (uint32_t i=0; i<mAddresses.size(); i++) // print one in every 10,000 addresses (just for testing right now)
 		{
 			BitcoinAddress *ba = mAddresses.getKey(i);
@@ -3092,9 +3035,9 @@ public:
 			double seconds = difftime(currentTime,time_t(lastUsed));
 			double minutes = seconds/60;
 			double hours = minutes/60;
-			uint32_t days = (uint32_t) (hours/24);
+			uint32_t days = static_cast<uint32_t>(hours/24);
 			uint32_t adr = mAddresses.getIndex(ba)+1;
-			logMessage("%40s,  %8d,  %4d\r\n", getKey(adr), (uint32_t)( balance / ONE_BTC ), days );
+			logMessage("%40s,  %8d,  %4d\r\n", getKey(adr), static_cast<uint32_t>( balance / ONE_BTC ), days );
 		}
 		delete []sortPointers;
 	}
@@ -3104,7 +3047,7 @@ public:
 		uint32_t ret = 0;
 
 		uint64_t btcValue = 0;
-		uint64_t mbtc = (uint64_t)(minBalance*ONE_BTC);
+		uint64_t mbtc = static_cast<uint64_t>(minBalance*ONE_BTC);
 		time_t currentTime(baseTime);
 
 		for (uint32_t i=0; i<mAddresses.size(); i++) // print one in every 10,000 addresses (just for testing right now)
@@ -3121,7 +3064,7 @@ public:
 				double seconds = difftime(currentTime,time_t(lastUsed));
 				double minutes = seconds/60;
 				double hours = minutes/60;
-				uint32_t days = (uint32_t) (hours/24);
+				uint32_t days = static_cast<uint32_t>(hours/24);
 				if ( days >= daysMin && days < daysMax )
 				{
 					btcValue+=balance;
@@ -3130,7 +3073,7 @@ public:
 			}
 		}
 
-		btcTotal = (uint32_t)(btcValue / ONE_BTC);
+		btcTotal = static_cast<uint32_t>(btcValue / ONE_BTC);
 
 		return ret;
 	}
@@ -3139,13 +3082,13 @@ public:
 	{
 		uint64_t oneBtc = ONE_BTC;
 		uint64_t result = btc / oneBtc;
-		return (uint32_t)result;
+		return static_cast<uint32_t>(result);
 	}
 
 
 	void zombieReport(uint32_t referenceTime,uint32_t zdays,float minBalance,BlockChain::ZombieReport &report)
 	{
-		uint64_t mbtc = (uint64_t)(minBalance*ONE_BTC);
+		uint64_t mbtc = static_cast<uint64_t>(minBalance*ONE_BTC);
 		time_t currentTime(referenceTime);
 
 		logMessage("Scanning %s bitcoin addresses and looking for zombies, relative to this date: %s\r\n", formatNumber(mAddresses.size()), getDateString(currentTime) );
@@ -3166,7 +3109,7 @@ public:
 			double minutes = seconds/60;
 			double hours = minutes/60;
 
-			uint32_t days = (uint32_t) (hours/24);
+			uint32_t days = static_cast<uint32_t>(hours/24);
 
 			if ( days > zdays )
 			{
@@ -3220,7 +3163,7 @@ public:
 	void printOldest(uint32_t tcount,float minBalance)
 	{
 		uint32_t plotCount = 0;
-		uint64_t mbtc = (uint64_t)(minBalance*ONE_BTC);
+		uint64_t mbtc = static_cast<uint64_t>(minBalance*ONE_BTC);
 		for (uint32_t i=0; i<mAddresses.size(); i++) // print one in every 10,000 addresses (just for testing right now)
 		{
 			BitcoinAddress *ba = mAddresses.getKey(i);
@@ -3273,9 +3216,9 @@ public:
 			double seconds = difftime(currentTime,time_t(lastUsed));
 			double minutes = seconds/60;
 			double hours = minutes/60;
-			uint32_t days = (uint32_t) (hours/24);
+			uint32_t days = static_cast<uint32_t>(hours/24);
 			uint32_t adr = mAddresses.getIndex(ba)+1;
-			logMessage("%40s,  %0.4f,  %4d\r\n", getKey(adr), (float) balance / ONE_BTC, days );
+			logMessage("%40s,  %0.4f,  %4d\r\n", getKey(adr), static_cast<float>(balance) / ONE_BTC, days );
 		}
 		delete []sortPointers;
 	}
@@ -3329,7 +3272,7 @@ public:
 		uint32_t i = mAddresses.getIndex(ba);
 		logMessage("========================================\r\n");
 		logMessage("PublicKey: %s[%d] has %s transactions associated with it.\r\n", getKey(i+1),i+1, formatNumber(ba->getData().mTransactionCount) );
-		logMessage("Balance: %0.4f : TotalReceived: %0.4f TotalSpent: %0.4f\r\n", (float) (ba->getData().mTotalReceived-ba->getData().mTotalSent)/ONE_BTC, (float)ba->getData().mTotalReceived / ONE_BTC, (float) ba->getData().mTotalSent / ONE_BTC );
+		logMessage("Balance: %0.4f : TotalReceived: %0.4f TotalSpent: %0.4f\r\n", static_cast<float>(ba->getData().mTotalReceived-ba->getData().mTotalSent)/ONE_BTC, static_cast<float>(ba->getData().mTotalReceived) / ONE_BTC, static_cast<float>(ba->getData().mTotalSent) / ONE_BTC );
 		if ( ba->getData().mLastInputTime )
 		{
 			logMessage("Last Input Time: %s\r\n", getTimeString(ba->getData().mLastInputTime) );
@@ -3353,7 +3296,7 @@ public:
 		{
 			if ( v < mStatLimits[i] )
 			{
-				return (StatSize)i;
+				return static_cast<StatSize>(i);
 			}
 		}
 		return SS_MAX_BTC;
@@ -3485,13 +3428,13 @@ public:
 					sa.mAddress = mAddresses.getIndex(ba)+1;
 					sa.mLastTime = ba->getLastUsedTime();
 					sa.mFirstTime = ba->getData().mFirstOutputTime;
-					sa.mTotalReceived = (uint32_t)(ba->getData().mTotalReceived/ONE_MBTC);
-					sa.mTotalSent = (uint32_t)(ba->getData().mTotalSent/ONE_MBTC);
-					sa.mTransactionCount = (uint8_t) (ba->getData().mTransactionCount > 255 ? 255 : ba->getData().mTransactionCount);
+					sa.mTotalReceived = static_cast<uint32_t>(ba->getData().mTotalReceived/ONE_MBTC);
+					sa.mTotalSent = static_cast<uint32_t>(ba->getData().mTotalSent/ONE_MBTC);
+					sa.mTransactionCount = static_cast<uint8_t> (ba->getData().mTransactionCount > 255 ? 255 : ba->getData().mTransactionCount);
 					uint32_t inputCount = ba->getInputCount();
 					uint32_t outputCount = ba->getOutputCount();
-					sa.mInputCount = (uint8_t) (inputCount > 255 ? 255 : inputCount);
-					sa.mOutputCount = (uint8_t) (outputCount > 255 ? 255 : outputCount);
+					sa.mInputCount = static_cast<uint8_t>(inputCount > 255 ? 255 : inputCount);
+					sa.mOutputCount = static_cast<uint8_t>(outputCount > 255 ? 255 : outputCount);
 				}
 
 				if ( mStatCount >= 1 )
@@ -3797,7 +3740,7 @@ public:
 		FILE *topKeys = fopen("topkeys.csv", "wb");
 
 		// BitcoinAddress Summary Results first
-		uint64_t mbtc = (uint64_t)(minBalance*ONE_BTC); 
+		uint64_t mbtc = static_cast<uint64_t>(minBalance*ONE_BTC); 
 
 		AgeStat ageStats[AM_LAST];
 
@@ -3880,7 +3823,7 @@ public:
 			for (uint32_t i=0; i<AM_LAST; i++)
 			{
 				AgeStat &as = ageStats[i];
-				fprintf(fph,"%s,%d,%d\r\n", getAgeString((AgeMarker)i), (uint32_t)(as.mTotalValue/ONE_BTC), as.mCount );
+				fprintf(fph,"%s,%d,%d\r\n", getAgeString(static_cast<AgeMarker>(i)), static_cast<uint32_t>(as.mTotalValue/ONE_BTC), as.mCount );
 			}
 			fprintf(fph,"\r\n");
 
@@ -3919,16 +3862,16 @@ public:
 					double seconds = difftime(currentTime,time_t(lastUsed));
 					double minutes = seconds/60;
 					double hours = minutes/60;
-					uint32_t days = (uint32_t) (hours/24);
+					uint32_t days = static_cast<uint32_t>(hours/24);
 					uint32_t adr = mAddresses.getIndex(ba)+1;
 
 					fprintf(topKeys,"%d,", days );
-					fprintf(topKeys,"%0.9f,", (float) balance / ONE_BTC );
+					fprintf(topKeys,"%0.9f,", static_cast<float>(balance) / ONE_BTC );
 					fprintf(topKeys,"\"%s\",", getTimeString(ba->getData().mFirstOutputTime));
 					fprintf(topKeys,"\"%s\",", getTimeString(ba->getData().mLastOutputTime));
 					fprintf(topKeys,"\"%s\",", getTimeString(ba->getData().mLastInputTime));
-					fprintf(topKeys,"%0.9f,", (float)ba->getData().mTotalSent / ONE_BTC );
-					fprintf(topKeys,"%0.9f,", (float) ba->getData().mTotalReceived / ONE_BTC );
+					fprintf(topKeys,"%0.9f,", static_cast<float>(ba->getData().mTotalSent) / ONE_BTC );
+					fprintf(topKeys,"%0.9f,", static_cast<float>(ba->getData().mTotalReceived) / ONE_BTC );
 					fprintf(topKeys,"%d,", ba->getData().mTransactionCount );
 					fprintf(topKeys,"%s\r\n", getKey(adr) );
 				}
@@ -3951,12 +3894,12 @@ public:
 					uint32_t days = ba->getDaysSinceLastUsed(0);
 					uint32_t adr = mAddresses.getIndex(ba)+1;
 					fprintf(topKeys,"%d,", days );
-					fprintf(topKeys,"%0.9f,", (float) balance / ONE_BTC );
+					fprintf(topKeys,"%0.9f,", static_cast<float>(balance) / ONE_BTC );
 					fprintf(topKeys,"\"%s\",", getTimeString(ba->getData().mFirstOutputTime));
 					fprintf(topKeys,"\"%s\",", getTimeString(ba->getData().mLastOutputTime));
 					fprintf(topKeys,"\"%s\",", getTimeString(ba->getData().mLastInputTime));
-					fprintf(topKeys,"%0.9f,", (float)ba->getData().mTotalSent / ONE_BTC );
-					fprintf(topKeys,"%0.9f,", (float) ba->getData().mTotalReceived / ONE_BTC );
+					fprintf(topKeys,"%0.9f,", static_cast<float>(ba->getData().mTotalSent) / ONE_BTC );
+					fprintf(topKeys,"%0.9f,", static_cast<float>(ba->getData().mTotalReceived) / ONE_BTC );
 					fprintf(topKeys,"%d,", ba->getData().mTransactionCount );
 					fprintf(topKeys,"%s\r\n", getKey(adr) );
 
@@ -4017,7 +3960,7 @@ public:
 				for (uint32_t j=0; j<SS_COUNT; j++)
 				{
 					StatValue &v = row.mStats[j];
-					fprintf(fph,"%0.4f,",(float)v.mValue/ONE_BTC);
+					fprintf(fph,"%0.4f,",static_cast<float>(v.mValue)/ONE_BTC);
 				}
 				fprintf(fph,"\r\n");
 			}
@@ -4049,15 +3992,25 @@ protected:
 	StatRow						mStatistics[MAX_STAT_COUNT];
 	const char					*mStatLabel[SS_COUNT];
 	uint64_t					mStatLimits[SS_COUNT];
+private:
+	BitcoinTransactionFactory(const BitcoinTransactionFactory&);
+	BitcoinTransactionFactory &operator=(const BitcoinTransactionFactory&);
 };
-
+#ifdef WIN32
 #pragma warning(pop)
-
+#endif
 // This is the implementation of the BlockChain parser interface
 class BlockChainImpl : public BlockChain
 {
 public:
-	BlockChainImpl(const char *rootPath)
+	BlockChainImpl(const char *rootPath):mTransactionSizeReport(NULL),mExportFile(NULL),mLastExportTime(0xFFFFFFFF),mLastExportDay(0xFFFFFFFF),
+					mExportTransactionCount(0),mSearchForText(0),mAnalyzeInputSignatures(false),mExportTransactions(false),
+					mBlockIndex(0),mFileLength(0),mBlockBase(0),mSingleReadBlock(),mSingleTransactionBlock(),mReadCount(0),
+					mCurrentBlockData(mBlockDataBuffer),mTransactionCount(0),mTransactionMap(),mLastBlockHeaderCount(0),
+					mTotalTransactionCount(0),mTotalInputCount(0),mTotalOutputCount(0),mScanCount(0),mBlockCount(0),
+					mLastBlockHeader(NULL),mBlockHeaders(NULL),mBlockHeaderMap(),
+					mTransactionFactory(new BitcoinTransactionFactory),mTransactionBlockStat(),
+					mBitcoinAddressDataFactory(new BitcoinAddressDataFactory),mTextReport(NULL)
 	{
 		uint8_t key[20] = { 0x19, 0xa7, 0xd8, 0x69, 0x03, 0x23, 0x68, 0xfd, 0x1f, 0x1e, 0x26, 0xe5, 0xe7, 0x3a, 0x4a, 0xd0, 0xe4, 0x74, 0x96, 0x0e };
 		uint8_t temp[25];
@@ -4081,36 +4034,12 @@ public:
 		bitcoinAsciiToAddress(gDummyKeyAscii,gDummyKey);
 		bitcoinAsciiToAddress(gZeroByteAscii,gZeroByte);
 
-		mTextReport = NULL;
-		mBitcoinAddressDataFactory = new BitcoinAddressDataFactory;
 		gBitcoinAddressDataFactory = mBitcoinAddressDataFactory;
-		mSearchForText = 0;
-		mTransactionFactory = new BitcoinTransactionFactory;
-		mTransactionSizeReport = NULL;
-		mExportFile = NULL;
-		mLastExportIndex = 0;
-		mLastExportDay = 0xFFFFFFFF;
-		mLastExportTime = 0xFFFFFFFF;
-		mAnalyzeInputSignatures = false;
-		mExportTransactions = false;
 		sprintf(mRootDir,"%s",rootPath);
-		mCurrentBlockData = mBlockDataBuffer;	// scratch buffers to read in up to 3 block.
-		mTransactionCount = 0;
-		mBlockIndex = 0;
-		mBlockBase = 0;
-		mReadCount = 0;
 		for (uint32_t i=0; i<MAX_BLOCK_FILES; i++)
 		{
 			mBlockChain[i] = NULL;
 		}
-		mBlockCount = 0;
-		mScanCount = 0;
-		mBlockHeaders = NULL;
-		mLastBlockHeaderCount = 0;
-		mLastBlockHeader = NULL;
-		mTotalInputCount = 0;
-		mTotalOutputCount = 0;
-		mTotalTransactionCount = 0;
 		mBlockHeaderMap.setMemoryMapFileName("@BlockHeaderMap.mmap");
 		mTransactionMap.setMemoryMapFileName("@TransactionMap.mmap");
 		openBlock();	// open the input file
@@ -4290,7 +4219,7 @@ public:
 				if ( mSearchForText ) // if we are searching for ASCII text in the input stream...
 				{
 					uint32_t textCount = 0;
-					const char *scan = (const char *)blockData;
+					const char *scan = reinterpret_cast<const char *>(blockData);
 					const char *end_scan = scan+(block.blockLength-mSearchForText);
 					char *scratch =  new char[MAX_BLOCK_SIZE];
 					uint32_t lineCount = 0;
@@ -4442,10 +4371,10 @@ public:
 		logMessage("Number of Transactions: %s\r\n", formatNumber(block->transactionCount) );
 		logMessage("Timestamp : %s\r\n", getTimeString(block->timeStamp ) );
 		logMessage("Bits: %d Hex: %08X\r\n", block->bits, block->bits );
-		logMessage("Size: %0.10f KB or %s bytes.\r\n", (float)block->blockLength / 1024.0f, formatNumber(block->blockLength) );
+		logMessage("Size: %0.10f KB or %s bytes.\r\n", static_cast<float>(block->blockLength) / 1024.0f, formatNumber(block->blockLength) );
 		logMessage("Version: %d\r\n", block->blockFormatVersion );
 		logMessage("Nonce: %u\r\n", block->nonce );
-		logMessage("BlockReward: %f\r\n", (float)block->blockReward / ONE_BTC );
+		logMessage("BlockReward: %f\r\n", static_cast<float>(block->blockReward) / ONE_BTC );
 
 		logMessage("%s transactions\r\n", formatNumber(block->transactionCount) );
 		for (uint32_t i=0; i<block->transactionCount; i++)
@@ -4480,7 +4409,7 @@ public:
 							const BlockOutput &o = t->outputs[input.transactionIndex];
 							if ( o.publicKey[0] )
 							{
-								logMessage("     Spending From Public Key: %s in the amount of: %0.4f\r\n", o.asciiAddress, (float)o.value / ONE_BTC );
+								logMessage("     Spending From Public Key: %s in the amount of: %0.4f\r\n", o.asciiAddress, static_cast<float>(o.value) / ONE_BTC );
 							}
 							else
 							{
@@ -4497,7 +4426,7 @@ public:
 			for (uint32_t i=0; i<t.outputCount; i++)
 			{
 				const BlockOutput &output = t.outputs[i];
-				logMessage("    Output: %s : %f BTC : ChallengeScriptLength: %s\r\n", formatNumber(i), (float)output.value / ONE_BTC, formatNumber(output.challengeScriptLength) );
+				logMessage("    Output: %s : %f BTC : ChallengeScriptLength: %s\r\n", formatNumber(i), static_cast<float>(output.value) / ONE_BTC, formatNumber(output.challengeScriptLength) );
 				if ( output.publicKey[0] )
 				{
 					logMessage("PublicKey: %s : %s\r\n", output.asciiAddress, output.keyTypeName );
@@ -4530,9 +4459,9 @@ public:
 		return ret;
 	}
 
-	virtual const BlockTransaction *processSingleTransaction(const void *transactionData,uint32_t transactionLength)
+	virtual BlockTransaction *processSingleTransaction(const void *transactionData,uint32_t transactionLength)
 	{
-		const BlockTransaction *ret = NULL;
+		BlockTransaction *ret = NULL;
 		if ( transactionLength < MAX_BLOCK_SIZE )
 		{
 			mSingleTransactionBlock.blockIndex = 0;
@@ -4549,7 +4478,7 @@ public:
 
 	virtual const BlockTransaction *readSingleTransaction(const uint8_t *transactionHash) 
 	{
-		const BlockTransaction *ret = NULL;
+		BlockTransaction *ret = NULL;
 
 		Hash256 h(transactionHash);
 		FileLocation key(h,0,0,0,0);
@@ -4569,9 +4498,9 @@ public:
 		if ( fileIndex < MAX_BLOCK_FILES && mBlockChain[fileIndex] && transactionLength < MAX_BLOCK_SIZE )
 		{
 			FILE *fph = mBlockChain[fileIndex];
-			uint32_t saveLocation = (uint32_t)ftell(fph);
+			uint32_t saveLocation = static_cast<uint32_t>(ftell(fph));
 			fseek(fph,fileOffset,SEEK_SET);
-			uint32_t s = (uint32_t)ftell(fph);
+			uint32_t s = static_cast<uint32_t>(ftell(fph));
 			if ( s == fileOffset )
 			{
 				uint8_t *blockData = mTransactionBlockBuffer;
@@ -4581,7 +4510,7 @@ public:
 					ret = processSingleTransaction(blockData,transactionLength);
 					if ( ret )
 					{
-						BlockTransaction *t = (BlockTransaction *)ret;
+						BlockTransaction *t = ret;
 						t->transactionIndex = f.mTransactionIndex;
 						t->fileIndex = fileIndex;
 						t->fileOffset = fileOffset;
@@ -4793,7 +4722,7 @@ public:
 		if ( fph )
 		{
 			uint32_t magicID = 0;
-			uint32_t lastBlockRead = (uint32_t)ftell(fph);
+			uint32_t lastBlockRead = static_cast<uint32_t>(ftell(fph));
 			size_t r = fread(&magicID,sizeof(magicID),1,fph);	// Attempt to read the magic id for the next block
 			if ( r == 0 )
 			{
@@ -4810,15 +4739,15 @@ public:
 			{
 				fseek(fph,lastBlockRead,SEEK_SET);
 				logMessage("Warning: Missing block-header; scanning for next one.\r\n");
-				uint8_t *temp = (uint8_t *)::malloc(MAX_BLOCK_SIZE);
+				uint8_t *temp = reinterpret_cast<uint8_t *>(::malloc(MAX_BLOCK_SIZE));
 				memset(temp,0,MAX_BLOCK_SIZE);
-				uint32_t c = (uint32_t)fread(temp,1,MAX_BLOCK_SIZE,fph);
+				uint32_t c = static_cast<uint32_t>(fread(temp,1,MAX_BLOCK_SIZE,fph));
 				bool found = false;
 				if ( c > 0 )
 				{
 					for (uint32_t i=0; i<c; i++)
 					{
-						const uint32_t *check = (const uint32_t *)&temp[i];
+						const uint32_t *check = reinterpret_cast<const uint32_t *>(&temp[i]);
 						if ( *check == MAGIC_ID )
 						{
 							logMessage("Found the next block header after skipping: %s bytes forward in the file.\r\n", formatNumber(i) );
@@ -4867,7 +4796,7 @@ public:
 				BlockPrefix prefix;
 				header.mFileIndex = mBlockIndex;
 				r = fread(&header.mBlockLength,sizeof(header.mBlockLength),1,fph); // read the length of the block
-				header.mFileOffset = (uint32_t)ftell(fph);
+				header.mFileOffset = static_cast<uint32_t>(ftell(fph));
 				if ( r == 1 )
 				{
 					assert( header.mBlockLength < MAX_BLOCK_SIZE ); // make sure the block length does not exceed our maximum expected ever possible block size
@@ -4878,8 +4807,8 @@ public:
 						{
 							Hash256 *blockHash = static_cast< Hash256 *>(&header);
 							memcpy(header.mPreviousBlockHash,prefix.mPreviousBlock,32);
-							computeSHA256((uint8_t *)&prefix,sizeof(prefix),(uint8_t *)blockHash);
-							computeSHA256((uint8_t *)blockHash,32,(uint8_t *)blockHash);
+							computeSHA256(reinterpret_cast<uint8_t *>(&prefix),sizeof(prefix),reinterpret_cast<uint8_t *>(blockHash));
+							computeSHA256(reinterpret_cast<uint8_t *>(blockHash),32,reinterpret_cast<uint8_t *>(blockHash));
 							uint32_t currentFileOffset = ftell(fph); // get the current file offset.
 							uint32_t advance = header.mBlockLength - sizeof(BlockPrefix);
 							currentFileOffset+=advance;
@@ -4925,7 +4854,7 @@ public:
 			if ( mLastBlockHeader )
 			{
 				mBlockCount = 0;
-				const BlockHeader *scan = mLastBlockHeader;
+				BlockHeader *scan = mLastBlockHeader;
 				while ( scan )
 				{
 					Hash256 prevBlock(scan->mPreviousBlockHash);
@@ -4938,7 +4867,7 @@ public:
 				scan = mLastBlockHeader;
 				while ( scan )
 				{
-					mBlockHeaders[index] = (BlockHeader *)scan;
+					mBlockHeaders[index] = reinterpret_cast<BlockHeader *>(scan);
 					Hash256 prevBlock(scan->mPreviousBlockHash);
 					scan = mBlockHeaderMap.find(prevBlock);
 					index--;
@@ -5142,7 +5071,7 @@ public:
 									if ( (length1 + length2 + 4) == sequenceLength ) 
 									{
 										sigHash = scan;
-										uint32_t scanLength = (uint32_t)(scan-inputScript);
+										uint32_t scanLength = static_cast<uint32_t>(scan-inputScript);
 										const uint8_t *eos = inputScript+inputLength;
 										if ( scan[0] == 0x2a ) // pretty damned unsual situation!
 										{
@@ -5303,7 +5232,7 @@ public:
 				fprintf(fph,"%d,", _inputLength );
 
 				// Print the input value (TBD)
-				fprintf(fph,"%0.9f,", (float)value/ONE_BTC );
+				fprintf(fph,"%0.9f,", static_cast<float>(value)/ONE_BTC );
 
 				// Print the header bytes (up to 8 of them)
 				fprintf(fph,"0x");
@@ -5319,7 +5248,7 @@ public:
 				if ( sigHash )
 				{
 					fprintf(fph,"0x");
-					uint32_t sigIndex = (uint32_t) (sigHash-_inputScript);
+					uint32_t sigIndex = static_cast<uint32_t> (sigHash-_inputScript);
 					uint32_t count = 0;
 					for (uint32_t i=sigIndex; i<_inputLength; i++)
 					{
@@ -5441,7 +5370,7 @@ public:
 		time_t t(block->timeStamp);
 		struct tm *gtm = gmtime(&t);
 
-		if ( gtm->tm_yday != (int)mLastExportDay )
+		if ( gtm->tm_yday != static_cast<int>(mLastExportDay) )
 		{
 			nextFile = true;
 		}
@@ -5565,7 +5494,7 @@ public:
 						fprintf(mExportFile,"\",");
 
 						// the input value
-						fprintf(mExportFile,"\"%0.9f\",", (float)inputValue / ONE_BTC );
+						fprintf(mExportFile,"\"%0.9f\",", static_cast<float>(inputValue) / ONE_BTC );
 
 						// transaction index
 						fprintf(mExportFile,"\"%d\",", input.transactionIndex );
@@ -5598,7 +5527,7 @@ public:
 						const BlockChain::BlockOutput &output = t.outputs[i];
 						
 						fprintf(mExportFile,"\"%s\",", output.asciiAddress );
-						fprintf(mExportFile,"\"%0.9f\",", (float)output.value / ONE_BTC );
+						fprintf(mExportFile,"\"%0.9f\",", static_cast<float>(output.value) / ONE_BTC );
 						fprintf(mExportFile,"\"%d\",", output.challengeScriptLength );
 						fprintf(mExportFile,"\"%s\",", output.keyTypeName );
 					}
@@ -5711,7 +5640,7 @@ public:
 				for (uint32_t i=0; i<mTransactionBlockStat.mTransactionCount; i++)
 				{
 					uint64_t value = mTransactionBlockStat.mValues[i];
-					fprintf(fph,"%0.4f\r\n", (float)value/ONE_BTC );
+					fprintf(fph,"%0.4f\r\n", static_cast<float>(value)/ONE_BTC );
 				}
 				fclose(fph);
 			}
@@ -5727,10 +5656,10 @@ public:
 		if ( mTransactionSizeReport )
 		{
 			fprintf(mTransactionSizeReport,"%s,", getDateString(date));
-			fprintf(mTransactionSizeReport,"%0.4f,", (float)mTransactionBlockStat.mInputValue / ONE_BTC );
-			fprintf(mTransactionSizeReport,"%0.4f,", (float)mTransactionBlockStat.mOutputValue / ONE_BTC );
-			fprintf(mTransactionSizeReport,"%0.4f,", (float)mTransactionBlockStat.mCoinBaseValue / ONE_BTC );
-			fprintf(mTransactionSizeReport,"%0.4f,", (float)mTransactionBlockStat.mFeeValue / ONE_BTC );
+			fprintf(mTransactionSizeReport,"%0.4f,", static_cast<float>(mTransactionBlockStat.mInputValue) / ONE_BTC );
+			fprintf(mTransactionSizeReport,"%0.4f,", static_cast<float>(mTransactionBlockStat.mOutputValue) / ONE_BTC );
+			fprintf(mTransactionSizeReport,"%0.4f,", static_cast<float>(mTransactionBlockStat.mCoinBaseValue) / ONE_BTC );
+			fprintf(mTransactionSizeReport,"%0.4f,", static_cast<float>(mTransactionBlockStat.mFeeValue) / ONE_BTC );
 			fprintf(mTransactionSizeReport,"%d,", mTransactionBlockStat.mInputCount );
 			fprintf(mTransactionSizeReport,"%d,", mTransactionBlockStat.mOutputCount );
 			fprintf(mTransactionSizeReport,"%d,", mTransactionBlockStat.mBlockCount );
@@ -5760,7 +5689,6 @@ public:
 	FILE						*mExportFile;
 	uint32_t					mLastExportTime;
 	uint32_t					mLastExportDay;
-	uint32_t					mLastExportIndex;
 	uint32_t					mExportTransactionCount;
 
 	uint32_t					mSearchForText;
@@ -5781,8 +5709,8 @@ public:
 	BlockImpl					mSingleTransactionBlock;
 
 	uint32_t					mReadCount;
-	uint8_t						*mCurrentBlockData;
 	uint8_t						mBlockDataBuffer[MAX_BLOCK_SIZE];	// Holds one block of data
+	uint8_t                                         *mCurrentBlockData;
 	uint8_t						mTransactionBlockBuffer[MAX_BLOCK_SIZE];
 	uint32_t					mTransactionCount;
 	TransactionHashMap			mTransactionMap;	// A hash map to the seek file location of all transactions (by hash)
@@ -5800,6 +5728,9 @@ public:
 	TransactionBlockStat		mTransactionBlockStat;
 	BitcoinAddressDataFactory	*mBitcoinAddressDataFactory;
 	FILE						*mTextReport;
+private:
+        BlockChainImpl(const BlockChainImpl&);
+        const BlockChainImpl &operator=(const BlockChainImpl&);
 };
 
 

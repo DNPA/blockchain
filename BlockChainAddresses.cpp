@@ -16,54 +16,6 @@
 #define MAXNUMERIC 32  // JWR  support up to 16 32 character long numeric formated strings
 #define MAXFNUM    16
 
-static	char  gFormat[MAXNUMERIC*MAXFNUM];
-static int32_t    gIndex=0;
-
-static const char * formatNumber(int32_t number) // JWR  format this integer into a fancy comma delimited string
-{
-	char * dest = &gFormat[gIndex*MAXNUMERIC];
-	gIndex++;
-	if ( gIndex == MAXFNUM ) gIndex = 0;
-
-	char scratch[512];
-
-#ifdef _MSC_VER
-	itoa(number,scratch,10);
-#else
-	snprintf(scratch, 10, "%d", number);
-#endif
-
-	char *source = scratch;
-	char *str = dest;
-	uint32_t len = (uint32_t)strlen(scratch);
-	if ( scratch[0] == '-' )
-	{
-		*str++ = '-';
-		source++;
-		len--;
-	}
-	for (uint32_t i=0; i<len; i++)
-	{
-		int32_t place = (len-1)-i;
-		*str++ = source[i];
-		if ( place && (place%3) == 0 ) *str++ = ',';
-	}
-	*str = 0;
-
-	return dest;
-}
-
-
-
-static const char *getTimeString(uint32_t timeStamp)
-{
-	static char scratch[1024];
-	time_t t(timeStamp);
-	struct tm *gtm = gmtime(&t);
-	strftime(scratch, 1024, "%m/%d/%Y %H:%M:%S", gtm);
-	return scratch;
-}
-
 class BlockChainAddressesImpl : public BlockChainAddresses
 {
 public:
@@ -76,16 +28,8 @@ public:
 	class Row
 	{
 	public:
-		Row(void)
-		{
-			mStartTime = 0;
-			mAddressCount = 0;
-			mChangeAddressCount = 0;
-			mDeleteAddressCount = 0;
-			mNewAddresses = NULL;
-			mChangedAddresses = NULL;
-			mDeletedAddresses = NULL;
-		}
+		Row(void):mStartTime(0),mAddressCount(0),mChangeAddressCount(0),mDeleteAddressCount(0),mNewAddresses(NULL),mChangedAddresses(NULL),
+				mDeletedAddresses(NULL){}
 
 		~Row(void)
 		{
@@ -93,7 +37,6 @@ public:
 			delete []mChangedAddresses;
 			delete []mDeletedAddresses;
 		}
-
 		uint32_t							mStartTime;
 		uint32_t							mAddressCount;
 		uint32_t							mChangeAddressCount;
@@ -101,19 +44,15 @@ public:
 		BlockChainAddresses::StatAddress	*mNewAddresses;
 		BlockChainAddresses::StatAddress	*mChangedAddresses;
 		uint32_t							*mDeletedAddresses;
+        private:
+		Row(const BlockChainAddressesImpl::Row&);		
+		Row &operator=(const Row&);
 	};
 
-	BlockChainAddressesImpl(const char *fname)
-	{
-		mRowCount = 0;
-		mAddressCount = 0;
-		mAddresses = 0;
-		mRows = 0;
-		mCurrentRow = NULL;
-		mCurrentRowIndex = 0;
-		mCurrentRowCount = 0;
-		mCurrentAddressLocation = NULL;
 
+	BlockChainAddressesImpl(const char *fname):mAddressCount(0),mAddresses(NULL),mRowCount(0),mRows(NULL),mCurrentRowIndex(0),
+							mCurrentRowCount(0),mCurrentRow(NULL),mCurrentAddressLocation(NULL)
+	{
 		FILE *fph = fopen(fname,"rb");
 		if ( fph )
 		{
@@ -259,7 +198,7 @@ public:
 		{
 			Address *ba = &mAddresses[a-1];
 			uint8_t address1[25];
-			bitcoinRIPEMD160ToAddress((const uint8_t *)ba,address1);
+			bitcoinRIPEMD160ToAddress(reinterpret_cast<const uint8_t *>(ba),address1);
 			bitcoinAddressToAscii(address1,scratch,256);
 			ret = scratch;
 		}
@@ -341,7 +280,7 @@ public:
 					mCurrentAddressLocation[adr-1] = 0xFFFFFFFF; // mark it as deleted!
 				}
 			}
-			uint32_t newRowCount = mCurrentRowCount + row.mAddressCount - row.mDeleteAddressCount + (uint32_t)changeNew.size();
+			uint32_t newRowCount = mCurrentRowCount + row.mAddressCount - row.mDeleteAddressCount + static_cast<uint32_t>(changeNew.size());
 			StatAddress *newRows = new StatAddress[newRowCount];
 			uint32_t destIndex = 0;
 			for (uint32_t i=0; i<mCurrentRowCount; i++)
@@ -438,7 +377,9 @@ public:
 		scount = mCurrentRowCount;
 		return mCurrentRow;
 	}
-
+    private:
+        BlockChainAddressesImpl(const BlockChainAddressesImpl&);
+        BlockChainAddressesImpl& operator=(const BlockChainAddressesImpl&);
 	uint32_t	mAddressCount;
 	Address		*mAddresses;
 	uint32_t	mRowCount;

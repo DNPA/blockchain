@@ -25,27 +25,25 @@ public:
 	class HashEntry
 	{
 	public:
-		HashEntry(void)
-		{
-			mNext = NULL;
-		}
+		HashEntry(void):mKey(),mNext(NULL){}
 		Key			mKey;
 		HashEntry*	mNext;
+        private:
+		HashEntry(const SimpleHash<Key,hashTableSize,hashTableEntries>::HashEntry &);
+                SimpleHash<Key,hashTableSize,hashTableEntries>::HashEntry 
+				&operator=(const SimpleHash<Key,hashTableSize,hashTableEntries>::HashEntry &);                
 	};
 
 	inline bool empty(void) const
 	{
 		return mHashTableCount ? true : false;
 	}
-
-	SimpleHash(void)
-	{
-		mMemoryMapFileName = NULL;
 #if USE_MEMORY_MAP
-		mMemoryMap = NULL;
+        SimpleHash(void):mHashTableCount(0),mEntries(NULL),mMemoryMapFileName(NULL),mMemoryMap(NULL)
+#else
+	SimpleHash(void):mHashTableCount(0),mEntries(NULL),mMemoryMapFileName(NULL)
 #endif
-		mEntries = NULL;
-		mHashTableCount = 0;
+	{
 		for (uint32_t i = 0; i < hashTableSize; i++)
 		{
 			mHashTable[i] = NULL;
@@ -72,7 +70,7 @@ public:
 			}
 #else
 			uint64_t size = sizeof(HashEntry)*hashTableEntries;
-			mEntries = (HashEntry *)malloc(size);
+			mEntries = reinterpret_cast<HashEntry *>(malloc(size));
 			if ( mEntries == NULL )
 			{
 				printf("Failed to allocate memory for hashmap %s. Exiting\r\n", mMemoryMapFileName);
@@ -97,8 +95,8 @@ public:
 	inline uint32_t getIndex(const Key *k) const
 	{
 		assert(k);
-		HashEntry *h = (HashEntry *)k;
-		return (uint32_t)(h-mEntries);
+		const HashEntry *h = reinterpret_cast<const HashEntry *>(k);
+		return static_cast<uint32_t>(h-mEntries);
 	}
 
 	inline Key * getKey(uint32_t i) const
@@ -172,7 +170,8 @@ public:
 		mMemoryMapFileName = f;
 	}
 private:
-
+        SimpleHash(const SimpleHash&);
+        const SimpleHash &operator=(const SimpleHash&);
 	inline uint32_t getHash(const Key& key) const
 	{
 		return key.getHash() & (hashTableSize - 1);

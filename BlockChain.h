@@ -97,11 +97,7 @@ class BlockChain
 public:
 	struct BitcoinData
 	{
-		BitcoinData(void)
-		{
-			mValue = 0;
-			mAddressCount = 0;
-		}
+		BitcoinData(void):mValue(0),mAddressCount(0){}
 		uint64_t	mValue;
 		uint32_t	mAddressCount;
 	};
@@ -161,13 +157,8 @@ public:
 	class BlockInput
 	{
 	public:
-		BlockInput(void)
-		{
-			responseScriptLength  = 0;
-			responseScript = 0;
-			signatureFormat = 0; // unassigned by default
-			inputValue = 0;
-		}
+		BlockInput(void):transactionHash(NULL),transactionIndex(0),responseScriptLength(0),responseScript(NULL),sequenceNumber(0),
+					signatureFormat(0),inputValue(0){}
 		const uint8_t	*transactionHash;			// The hash of the input transaction; this a is a pointer to the 32 byte hash
 		uint32_t		transactionIndex;			// The index of the transaction
 		uint32_t		responseScriptLength;		// the length of the response script. (In theory this could be >32 bits; in practice it never will be.)
@@ -205,18 +196,13 @@ public:
 	class BlockOutput
 	{
 	public:
-		BlockOutput(void)
+		BlockOutput(void):value(0),challengeScriptLength(0),challengeScript(NULL),signatureCount(1),keyType(KT_UNKNOWN),
+					keyTypeName(NULL),multiSigFormat(0),multisig()
 		{
-			value = 0;
-			challengeScriptLength = 0;
-			challengeScript = 0;
-			keyType = KT_UNKNOWN;
-			multiSigFormat = 0;
 			for (uint32_t i=0; i<5; i++)
 			{
 				publicKey[i] = 0;
 			}
-			signatureCount = 1;
 			keyTypeName = "UNKNOWN";
 			asciiAddress[0] = 0;
 		}
@@ -238,14 +224,8 @@ public:
 	class BlockTransaction
 	{
 	public:
-		BlockTransaction(void)
-		{
-			inputCount = 0;
-			inputs = 0;
-			outputCount = 0;
-			outputs = 0;
-			transactionIndex = 0;
-		}
+		BlockTransaction(void):transactionVersionNumber(0),inputCount(0),inputs(NULL),outputCount(0),outputs(NULL),lockTime(0),
+					transactionLength(0),fileIndex(0),fileOffset(0),transactionIndex(0){}
 		uint32_t		transactionVersionNumber;	// The transaction version number
 		uint32_t		inputCount;					// The number of inputs in the block; in theory this could be >32 bits; in practice it never will be.
 		BlockInput		*inputs;					// A pointer to the array of inputs
@@ -265,12 +245,10 @@ public:
 	class Block
 	{
 	public:
-		Block(void)
-		{
-			transactions = 0;
-			transactionCount = 0;
-			nextBlockHash = 0;
-		}
+		Block(void): blockLength(0),blockFormatVersion(0),previousBlockHash(NULL),merkleRoot(NULL),timeStamp(0),bits(0),nonce(0),
+				transactionCount(0),transactions(NULL),blockIndex(0),totalInputCount(0),totalOutputCount(0),fileIndex(0),
+				fileOffset(0),blockReward(0),nextBlockHash(NULL),warning(false){}
+		virtual ~Block() {}
 		uint32_t		blockLength;				// the length of this block
 		uint32_t		blockFormatVersion;			// The block format version
 		const uint8_t	*previousBlockHash;			// A pointer to the previous block hash (32 bytes)
@@ -290,6 +268,9 @@ public:
 		uint64_t		blockReward;				// Block redward in BTC
 		const uint8_t	*nextBlockHash;				// The hash of the next block in the block chain; null if this is the last block
 		bool			warning;					// there was a warning issued while processing this block.
+	private:
+		Block(const Block&);
+		Block &operator=(const Block&);
 	};
 
 	virtual uint32_t getBlockCount(void) const = 0; // Return the number of blocks found

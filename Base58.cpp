@@ -40,7 +40,7 @@
 class BigNumber
 {
 public:
-	BigNumber(const uint8_t *sourceData,uint32_t len)
+	BigNumber(const uint8_t *sourceData,uint32_t len):length(len)
 	{
 		assert(len<MAX_BIG_NUMBER);
 		memset(data,0,MAX_BIG_NUMBER);
@@ -48,7 +48,6 @@ public:
 		{
 			memcpy(data,sourceData,len);
 		}
-		length = len;
 	}
 	uint8_t		data[MAX_BIG_NUMBER]; /**< The byte data. Should be little-endian */
 	uint32_t	length; /**< The length of this data in bytes */
@@ -193,7 +192,7 @@ void BigNumberEqualsDivisionBy58(BigNumber * a, uint8_t * ans)
 	{
 		temp <<= 8;
 		temp |= a->data[x];
-		ans[x] = (uint8_t)(temp / 58);
+		ans[x] = temp / 58;
 		temp -= ans[x] * 58;
 	}
 	if (! ans[a->length-1]) // If last byte is zero, adjust length.
@@ -217,14 +216,14 @@ bool BigNumberEqualsMultiplicationByUInt8(BigNumber * a, uint8_t b)
 	for (; x < a->length; x++) 
 	{
 		carry = carry + a->data[x] * b; // Allow for overflow onto next byte.
-		a->data[x] = (uint8_t)carry;
+		a->data[x] = static_cast<uint8_t>(carry);
 		carry >>= 8;
 	}
 	if (carry) 
 	{ // If last byte is not zero, adjust length.
 		a->length++;
 		assert( a->length < MAX_BIG_NUMBER );
-		a->data[x] = (uint8_t)carry;
+		a->data[x] = static_cast<uint8_t>(carry);
 	}
 	return true;
 }
@@ -237,7 +236,7 @@ void BigNumberEqualsSubtractionByBigInt(BigNumber * a, BigNumber * b)
 	for (x = 0; x < b->length; x++) {
 		uint16_t tmp = carry + b->data[x];
 		carry = a->data[x] < tmp;
-		a->data[x] -= (uint8_t)tmp;
+		a->data[x] -= static_cast<uint8_t>(tmp);
 	}
 	if (carry)
 		a->data[x]--;
@@ -280,7 +279,7 @@ uint8_t BigNumberModuloWith58(BigNumber * a)
 		if (! x)
 			break;
 	}
-	return (uint8_t)result;
+	return static_cast<uint8_t>(result);
 }
 
 void BigNumberNormalise(BigNumber * a)
@@ -304,7 +303,7 @@ bool CBDecodeBase58(BigNumber * bi,const char * str)
 	// ??? Quite likely these functions can be improved
 	BigNumber bi2(NULL,1);
 
-	uint32_t slen = (uint32_t)strlen(str);
+	uint32_t slen = static_cast<uint32_t>(strlen(str));
 
 	for (uint32_t x = slen - 1;; x--)
 	{ // Working backwards
@@ -336,7 +335,7 @@ bool CBDecodeBase58(BigNumber * bi,const char * str)
 			{ // m-z
 				alphaIndex -= 65;
 			}
-			if (! BigNumberFromPowUInt8(&bi2, 58, (uint8_t)(slen - 1 - x)))
+			if (! BigNumberFromPowUInt8(&bi2, 58, static_cast<uint8_t>(slen - 1 - x)))
 			{
 				// Error occured.
 				return false;

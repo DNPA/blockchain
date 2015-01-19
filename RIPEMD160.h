@@ -11,7 +11,7 @@
 // The implementation is based on the reference version released by Antoon Bosselaers, ESAT-COSIC in 1996
 //
 
-void computeRIPEMD160(const void *input,	// The input data to compute the hash for.
+void computeRIPEMD160(const uint8_t *input,	// The input data to compute the hash for.
 					  uint32_t length,		// The length of the input data
 					  uint8_t hashcode[20]); // The output hash of 160 bits (20 bytes)
 

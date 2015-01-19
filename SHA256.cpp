@@ -505,9 +505,9 @@ void computeSHA256(const void *input,uint32_t size,uint8_t destHash[32])
 }
 #else  //USE_CRYPTOPP_LIBRARY
 #include <cryptopp/sha.h>
-void computeSHA256(const void *input,uint32_t size,uint8_t destHash[32])
+void computeSHA256(const uint8_t *input,uint32_t size,uint8_t destHash[32])
 {
-    CryptoPP::SHA256().CalculateDigest((byte *)destHash,(byte const *) input,size);
+    CryptoPP::SHA256().CalculateDigest(static_cast<byte *>(destHash),static_cast<byte const *>(input),size);
 }
 #endif //USE_CRYPTOPP_LIBRARY
 

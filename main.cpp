@@ -12,9 +12,9 @@
 #endif
 
 #include "HeapSort.h"
-
+#ifdef WIN32
 #pragma warning(disable:4996 4702 4505)
-
+#endif
 time_t zombieDate(0x510B56CB); // right around January 1, 2013
 
 static bool isESC(void)
@@ -34,34 +34,6 @@ static bool isESC(void)
 
 	return ret;
 }
-
-static const char *getDateString(time_t t)
-{
-	static char scratch[1024];
-	struct tm *gtm = gmtime(&t);
-	//	strftime(scratch, 1024, "%m, %d, %Y", gtm);
-	sprintf(scratch,"%4d-%02d-%02d", gtm->tm_year+1900, gtm->tm_mon+1, gtm->tm_mday );
-	return scratch;
-}
-
-
-static const char *getTimeString(uint32_t timeStamp)
-{
-	static char scratch[1024];
-	time_t t(timeStamp);
-	struct tm *gtm = gmtime(&t);
-	strftime(scratch, 1024, "%m/%d/%Y %H:%M:%S", gtm);
-	return scratch;
-}
-
-static const char *getDateMonthString(time_t t)
-{
-	static char scratch[1024];
-	struct tm *gtm = gmtime(&t);
-	strftime(scratch, 1024, "%m %Y", gtm);
-	return scratch;
-}
-
 
 enum StatResolution
 {
@@ -87,39 +59,25 @@ public:
 						bool processTransactions,
 						StatResolution resolution,
 						uint32_t searchText,
-						uint32_t zombieDays)
+						uint32_t zombieDays):mMode(CM_SCAN),mExportTransactions(false),mAnalyze(false),
+									mRecordAddresses(false),mFinishedScanning(false),
+									mProcessTransactions(processTransactions),mStatResolution(resolution),
+									mProcessBlock(0),mMaxBlock(maxBlock),mLastBlockScan(0),
+									mLastBlockPrint(0),mCurrentBlock(NULL),
+									mBlockChain(createBlockChain(dataPath)),mLastTime(0),mSatoshiTime(0),
+									mMinBalance(1),mTransactionValue(false),mZombieDays(zombieDays),
+									 mSearchText(searchText)
 	{
-		mTransactionValue = false;
-		mAnalyze = false;
-		mExportTransactions = false;
-		mBlockChain = createBlockChain(dataPath);	// Create the block-chain parser using this root path
-		mZombieDays = zombieDays;
-		mSearchText = searchText;
 		if ( mBlockChain )
 		{
 			mBlockChain->searchForText(mSearchText);
 			mBlockChain->setZombieDays(mZombieDays);
 		}
-		mStatResolution = resolution;
-		mMaxBlock = maxBlock;
-
 		printf("Running the BlockChain parser.  Written by John W. Ratcliff on January 4, 2014 : TipJar: 1NY8SuaXfh8h5WHd4QnYwpgL1mNu9hHVBT\r\n");
 		printf("Registered DataDirectory: %s to scan for the blockchain.\r\n", dataPath );
 		printf("\r\n");
 		printf("You may press the ESC key to cleanly exit the processing wherever it is at currently.\r\n");
 		printf("\r\n");
-		mProcessTransactions = processTransactions;
-		mProcessBlock = 0;
-		mLastBlockScan = 0;
-		mLastBlockPrint = 0;
-		mFinishedScanning = false;
-		mCurrentBlock = NULL;
-		mLastTime = 0;
-		mSatoshiTime = 0;
-		mMinBalance = 1;
-		mRecordAddresses = false;
-		mMode = CM_SCAN;
-
 		if ( mBlockChain == NULL )
 		{
 			printf("Failed to open file: blk00000.dat in directory: %s\r\n", dataPath );
@@ -184,6 +142,8 @@ public:
 										getStats = true;
 									}
 									break;
+								case SR_LAST:
+									break;
 							}
 							if ( getStats )
 							{
@@ -193,7 +153,7 @@ public:
 									printf("Gathering statistics for %s %d, %d to %s %d, %d\r\n",
 										months[before.tm_mon], before.tm_mday, before.tm_year+1900,
 										months[beg.tm_mon], beg.tm_mday, beg.tm_year+1900);
-									mBlockChain->gatherStatistics(mLastTime,(uint32_t)zombieDate,mRecordAddresses);
+									mBlockChain->gatherStatistics(mLastTime,static_cast<uint32_t>(zombieDate),mRecordAddresses);
 								}
 								if ( mTransactionValue )
 								{
@@ -226,7 +186,7 @@ public:
 					if ( mProcessTransactions )
 					{
 						printf("Gathering final statistics.\r\n");
-						mBlockChain->gatherStatistics(mLastTime,(uint32_t)zombieDate,mRecordAddresses);
+						mBlockChain->gatherStatistics(mLastTime,static_cast<uint32_t>(zombieDate),mRecordAddresses);
 						printf("Saving statistics to file 'stats.csv\r\n");
 						mBlockChain->saveStatistics(mRecordAddresses,mMinBalance);
 					}
@@ -253,6 +213,10 @@ public:
 					}
 				}
 				break;
+			case CM_NONE:
+				break;
+			case CM_EXIT:
+				break;
 		}
 		return mMode != CM_EXIT;
 	}
@@ -267,7 +231,9 @@ public:
 	{
 		mMaxBlock = maxBlocks;
 	}
-
+private:
+        BlockChainCommand(const BlockChainCommand&);
+        BlockChainCommand& operator=(const BlockChainCommand&);
 	CommandMode				mMode;
 	bool					mExportTransactions;
 	bool					mAnalyze;

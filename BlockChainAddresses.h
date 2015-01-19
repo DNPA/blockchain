@@ -12,17 +12,8 @@ public:
 	class StatAddress
 	{
 	public:
-		StatAddress(void)
-		{
-			mAddress = 0;
-			mTotalReceived = 0;
-			mTotalSent = 0;
-			mLastTime = 0;
-			mTransactionCount = 0;
-			mInputCount = 0;
-			mOutputCount = 0;
-		}
-
+		StatAddress(void):mAddress(0),mTotalSent(0),mTotalReceived(0),mFirstTime(0),mLastTime(0),mTransactionCount(0),mInputCount(0),
+					mOutputCount(0){}
 		bool operator==(const StatAddress &a) const
 		{
 			return mAddress == a.mAddress &&
