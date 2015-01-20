@@ -139,6 +139,7 @@ public:
 						mWord1(*reinterpret_cast<const uint64_t *>(src+8)),
 						mWord2(*reinterpret_cast<const uint64_t *>(src+16)),
 						mWord3(*reinterpret_cast<const uint64_t *>(src+24)) {}
+	//FIXME: adding a virtual destructor should not brake stuff!
 	//virtual ~Hash256() {}
 
 	inline uint32_t getHash(void) const
