@@ -394,5 +394,5 @@ public:
 BlockChainAddresses *createBlockChainAddresses(const char *fname)
 {
 	BlockChainAddressesImpl *b = new BlockChainAddressesImpl(fname);
-	return static_cast< BlockChainAddresses *>(b);
+	return dynamic_cast< BlockChainAddresses *>(b);
 }

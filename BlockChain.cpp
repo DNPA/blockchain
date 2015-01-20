@@ -139,7 +139,7 @@ public:
 						mWord1(*reinterpret_cast<const uint64_t *>(src+8)),
 						mWord2(*reinterpret_cast<const uint64_t *>(src+16)),
 						mWord3(*reinterpret_cast<const uint64_t *>(src+24)) {}
-	virtual ~Hash256() {}
+	//virtual ~Hash256() {}
 
 	inline uint32_t getHash(void) const
 	{
@@ -1319,7 +1319,7 @@ public:
 		mWord0=other.mWord0;
 		mWord1=other.mWord1;
 		mWord2=other.mWord2;
-		mData=other.mData; //FIXME: I'm pretty sure this isn't safe but at least weǘe made it explicit now.
+		mData=other.mData; //FIXME: I'm pretty sure this isn't safe but at least we've made it explicit now.
 		return *this;
 	}
 		
